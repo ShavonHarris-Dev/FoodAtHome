@@ -1,0 +1,163 @@
+.food-genre-selector {
+  margin: 30px 0;
+}
+
+.food-genre-selector h3 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.food-genre-selector p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.genre-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.genre-button {
+  padding: 12px 16px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.genre-button:hover {
+  border-color: #667eea;
+  background: #f0f2ff;
+}
+
+.genre-button.selected {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.custom-genre-section {
+  margin: 30px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.custom-genre-section h4 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.custom-genre-input {
+  display: flex;
+  gap: 10px;
+}
+
+.custom-genre-input input {
+  flex: 1;
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.custom-genre-input input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.add-button {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.3s ease;
+}
+
+.add-button:hover:not(:disabled) {
+  background: #218838;
+}
+
+.add-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.selected-genres {
+  margin-top: 30px;
+  padding: 20px;
+  background: #e8f5e8;
+  border-radius: 10px;
+}
+
+.selected-genres h4 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.selected-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.selected-genre {
+  display: flex;
+  align-items: center;
+  background: #28a745;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  gap: 8px;
+}
+
+.remove-genre {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.remove-genre:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 768px) {
+  .genre-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+  }
+
+  .genre-button {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+
+  .custom-genre-input {
+    flex-direction: column;
+  }
+
+  .selected-list {
+    gap: 8px;
+  }
+}

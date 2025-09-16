@@ -1,0 +1,374 @@
+.meal-planner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.meal-planner-premium {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.planner-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.planner-header h2 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-size: 1.8rem;
+}
+
+.planner-header p {
+  color: #6c757d;
+  font-size: 1.1rem;
+}
+
+/* Premium Upgrade Section */
+.premium-upgrade {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 40px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.premium-upgrade h3 {
+  font-size: 1.8rem;
+  margin-bottom: 15px;
+}
+
+.premium-upgrade p {
+  font-size: 1.1rem;
+  margin-bottom: 25px;
+  opacity: 0.9;
+}
+
+.upgrade-benefits ul {
+  list-style: none;
+  padding: 0;
+  margin: 25px 0;
+}
+
+.upgrade-benefits li {
+  padding: 8px 0;
+  font-size: 1rem;
+}
+
+.upgrade-button {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 25px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upgrade-button:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+}
+
+/* Day Selector */
+.day-selector {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.day-button {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  padding: 10px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  color: #495057;
+}
+
+.day-button:hover {
+  border-color: #4CAF50;
+  background: #f1f8e9;
+}
+
+.day-button.active {
+  background: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
+}
+
+/* Meal Planning Grid */
+.meal-planning-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.selected-day-plan {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.selected-day-plan h3 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 1.4rem;
+}
+
+/* Meal Slots */
+.meal-slot {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 15px;
+  border: 2px solid #e9ecef;
+  transition: border-color 0.3s ease;
+}
+
+.meal-slot:hover {
+  border-color: #4CAF50;
+}
+
+.meal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.meal-icon {
+  font-size: 1.5rem;
+}
+
+.meal-header h4 {
+  color: #2c3e50;
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.meal-content {
+  margin-bottom: 15px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.assigned-meal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #4CAF50;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.clear-meal {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 10px;
+}
+
+.empty-meal {
+  color: #6c757d;
+  font-style: italic;
+  padding: 10px 15px;
+}
+
+.meal-selector select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+}
+
+/* Week Overview */
+.week-overview {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+}
+
+.week-overview h3 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.day-overview {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.day-overview:hover {
+  background: #e9ecef;
+}
+
+.day-overview.selected {
+  background: #e8f5e8;
+  border-color: #4CAF50;
+}
+
+.day-overview h5 {
+  color: #2c3e50;
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.day-meals {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+.mini-meal {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.mini-meal.planned {
+  background: #4CAF50;
+}
+
+.mini-meal.empty {
+  background: #dee2e6;
+  opacity: 0.5;
+}
+
+/* Planner Actions */
+.planner-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.action-button {
+  padding: 12px 25px;
+  border: none;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.action-button.primary {
+  background: #4CAF50;
+  color: white;
+}
+
+.action-button.primary:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+}
+
+.action-button.secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.action-button.secondary:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 968px) {
+  .meal-planning-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .week-overview {
+    order: -1;
+  }
+
+  .week-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .meal-planner {
+    padding: 15px;
+  }
+
+  .day-selector {
+    gap: 3px;
+  }
+
+  .day-button {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .meal-slot {
+    padding: 15px;
+  }
+
+  .week-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .day-overview {
+    padding: 10px 5px;
+  }
+
+  .day-overview h5 {
+    font-size: 0.8rem;
+  }
+
+  .mini-meal {
+    width: 25px;
+    height: 25px;
+    font-size: 0.8rem;
+  }
+
+  .action-button {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+}

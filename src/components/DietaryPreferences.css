@@ -1,0 +1,164 @@
+.dietary-preferences {
+  margin: 30px 0;
+}
+
+.dietary-preferences h3 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.dietary-preferences p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.quick-select {
+  margin-bottom: 30px;
+}
+
+.quick-select h4 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.preference-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.preference-button {
+  padding: 10px 15px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.preference-button:hover {
+  border-color: #28a745;
+  background: #f0fff0;
+}
+
+.preference-button.selected {
+  background: #28a745;
+  border-color: #28a745;
+  color: white;
+}
+
+.custom-input {
+  margin: 30px 0;
+}
+
+.custom-input label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.custom-input h4 {
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.custom-input p {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.custom-input textarea {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.custom-input textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.character-count {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 5px;
+}
+
+.selected-preferences {
+  margin-top: 30px;
+  padding: 20px;
+  background: #f0fff0;
+  border-radius: 10px;
+}
+
+.selected-preferences h4 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.preference-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.preference-tag {
+  display: flex;
+  align-items: center;
+  background: #28a745;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  gap: 8px;
+}
+
+.remove-preference {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.remove-preference:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 768px) {
+  .preference-buttons {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+
+  .preference-button {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  .custom-input textarea {
+    padding: 12px;
+  }
+
+  .preference-tags {
+    gap: 8px;
+  }
+}

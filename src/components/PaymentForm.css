@@ -1,0 +1,197 @@
+.payment-form {
+  min-height: 100vh;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.payment-container {
+  max-width: 900px;
+  background: white;
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.payment-container h2 {
+  color: #333;
+  margin-bottom: 30px;
+  font-size: 1.8rem;
+}
+
+.price-section {
+  margin: 30px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.price {
+  display: block;
+  font-size: 3rem;
+  font-weight: bold;
+  color: #28a745;
+  margin-bottom: 5px;
+}
+
+.price-description {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.payment-benefits {
+  text-align: left;
+  margin: 30px 0;
+}
+
+.payment-benefits h3 {
+  color: #333;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.payment-benefits ul {
+  list-style: none;
+  padding: 0;
+}
+
+.payment-benefits li {
+  padding: 8px 0;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+.payment-button {
+  background: #6772e5;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  font-size: 1.1rem;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin: 20px 0;
+}
+
+.payment-button:hover {
+  background: #5469d4;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(103, 114, 229, 0.3);
+}
+
+.payment-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.payment-note {
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 15px;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 5px;
+  margin: 15px 0;
+  border: 1px solid #f5c6cb;
+}
+
+/* Plan Selector Styles */
+.plan-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 30px 0;
+}
+
+.plan-option {
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  background: white;
+}
+
+.plan-option:hover {
+  border-color: #6772e5;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(103, 114, 229, 0.2);
+}
+
+.plan-option.selected {
+  border-color: #6772e5;
+  background: #f8f9ff;
+  box-shadow: 0 5px 15px rgba(103, 114, 229, 0.3);
+}
+
+.plan-option h3 {
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 1.3rem;
+}
+
+.plan-price {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #28a745;
+  margin-bottom: 20px;
+}
+
+.plan-option ul {
+  list-style: none;
+  padding: 0;
+  text-align: left;
+}
+
+.plan-option li {
+  padding: 5px 0;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.popular-badge {
+  position: absolute;
+  top: -10px;
+  right: 15px;
+  background: #FF6B35;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .payment-container {
+    padding: 20px;
+    margin: 10px;
+  }
+
+  .price {
+    font-size: 2.5rem;
+  }
+
+  .plan-selector {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .plan-option {
+    padding: 20px;
+  }
+
+  .plan-price {
+    font-size: 1.8rem;
+  }
+}
