@@ -76,6 +76,65 @@ export type Database = {
           created_at?: string
         }
       }
+      saved_recipes: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          description: string | null
+          ingredients: string[]
+          instructions: string[]
+          prep_time: number
+          cook_time: number
+          servings: number
+          cuisine: string[]
+          dietary_tags: string[]
+          difficulty: string
+          tips: string[] | null
+          variations: string[] | null
+          is_generated: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          description?: string | null
+          ingredients: string[]
+          instructions: string[]
+          prep_time: number
+          cook_time: number
+          servings: number
+          cuisine: string[]
+          dietary_tags: string[]
+          difficulty: string
+          tips?: string[] | null
+          variations?: string[] | null
+          is_generated?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          description?: string | null
+          ingredients?: string[]
+          instructions?: string[]
+          prep_time?: number
+          cook_time?: number
+          servings?: number
+          cuisine?: string[]
+          dietary_tags?: string[]
+          difficulty?: string
+          tips?: string[] | null
+          variations?: string[] | null
+          is_generated?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }

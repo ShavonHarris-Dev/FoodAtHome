@@ -57,6 +57,65 @@
   font-weight: 500;
 }
 
+.preferences-summary {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.preferences-summary h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.preference-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preference-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.preference-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+  margin-right: 8px;
+}
+
+.preference-tag {
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.preference-tag.dietary {
+  background: #ffeaa7;
+  color: #d63031;
+}
+
+.preference-tag.cuisine {
+  background: #a29bfe;
+  color: white;
+}
+
+.preferences-note {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-style: italic;
+  margin-bottom: 0;
+}
+
 .recipe-suggestions h3 {
   color: #2c3e50;
   margin-bottom: 15px;
