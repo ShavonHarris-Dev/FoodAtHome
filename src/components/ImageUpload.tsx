@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import heic2any from 'heic2any'
 import './ImageUpload.css'
 
 interface ImageUploadProps {
@@ -12,19 +13,94 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
   const { user } = useAuth()
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [converting, setConverting] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const uploadImage = async (file: File): Promise<string> => {
+  // Check if file is HEIC format
+  const isHEIC = (file: File): boolean => {
+    const fileName = file.name.toLowerCase()
+
+    // Simple and reliable HEIC detection - only check file extension
+    return fileName.endsWith('.heic') || fileName.endsWith('.heif')
+  }
+
+  // Convert HEIC to JPEG
+  const convertHEICToJPEG = async (file: File): Promise<File> => {
+    try {
+      console.log('Starting HEIC conversion for:', file.name, 'Size:', file.size, 'Type:', file.type)
+
+      // Validate file size
+      if (file.size === 0) {
+        throw new Error('HEIC file appears to be empty or corrupted')
+      }
+
+      if (file.size > 50 * 1024 * 1024) { // 50MB limit
+        throw new Error('HEIC file is too large (max 50MB)')
+      }
+
+      const result = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.8
+      })
+
+      console.log('HEIC conversion result:', result)
+
+      // heic2any can return either a Blob or an array of Blobs
+      const blob = Array.isArray(result) ? result[0] : result
+
+      if (!blob || blob.size === 0) {
+        throw new Error('Conversion resulted in empty file')
+      }
+
+      // Create a new File object from the converted blob
+      const convertedFile = new File(
+        [blob],
+        file.name.replace(/\.(heic|heif)$/i, '.jpg'),
+        { type: 'image/jpeg' }
+      )
+
+      console.log('HEIC conversion successful. New file:', convertedFile.name, 'Size:', convertedFile.size)
+      return convertedFile
+    } catch (error) {
+      console.error('HEIC conversion failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Conversion failed'
+      console.error('Error details:', errorMessage)
+
+      // Provide more helpful error messages
+      if (errorMessage.includes('Could not parse HEIF file')) {
+        throw new Error('HEIC file is corrupted or in an unsupported format. Please try taking a new photo.')
+      }
+
+      throw new Error(`HEIC conversion failed: ${errorMessage}. Try uploading a JPG or PNG instead.`)
+    }
+  }
+
+  // Process file (convert HEIC if needed)
+  const processFile = async (file: File): Promise<File> => {
+    console.log('Processing file:', file.name, 'Type:', file.type, 'HEIC detected:', isHEIC(file))
+
+    if (isHEIC(file)) {
+      console.log('Converting HEIC file:', file.name)
+      return await convertHEICToJPEG(file)
+    }
+    return file
+  }
+
+  const uploadImage = async (originalFile: File): Promise<string> => {
     if (!user) throw new Error('User not authenticated')
     if (!supabase) throw new Error('Supabase not configured')
 
-    const fileExt = file.name.split('.').pop()
+    // Process file (convert HEIC if needed)
+    const processedFile = await processFile(originalFile)
+
+    const fileExt = processedFile.name.split('.').pop()
     const fileName = `${user.id}/${Date.now()}.${fileExt}`
 
     const { data, error } = await supabase.storage
       .from('user-images')
-      .upload(fileName, file)
+      .upload(fileName, processedFile)
 
     if (error) throw error
 
@@ -38,7 +114,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
       .insert({
         user_id: user.id,
         image_url: publicUrl,
-        image_name: file.name
+        image_name: processedFile.name
       })
 
     return publicUrl
@@ -55,6 +131,12 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
       return
     }
 
+    // Check if any files need conversion
+    const hasHEICFiles = filesToUpload.some(file => isHEIC(file))
+
+    if (hasHEICFiles) {
+      setConverting(true)
+    }
     setUploading(true)
 
     try {
@@ -66,9 +148,16 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
       onImagesUploaded(updatedImages)
     } catch (error) {
       console.error('Error uploading images:', error)
-      alert('Error uploading images. Please try again.')
+
+      // More specific error messages
+      if (error instanceof Error && error.message.includes('convert HEIC')) {
+        alert('Error converting HEIC images. Please try uploading JPG or PNG files instead.')
+      } else {
+        alert('Error uploading images. Please try again.')
+      }
     } finally {
       setUploading(false)
+      setConverting(false)
     }
   }
 
@@ -127,13 +216,20 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
         {uploading ? (
           <div className="uploading">
             <div className="spinner"></div>
-            <p>Uploading images...</p>
+            {converting ? (
+              <div>
+                <p>Converting HEIC images...</p>
+                <p className="upload-hint">This may take a moment</p>
+              </div>
+            ) : (
+              <p>Uploading images...</p>
+            )}
           </div>
         ) : (
           <div className="upload-content">
             <div className="upload-icon">📸</div>
             <p>Drag & drop images here or click to select</p>
-            <p className="upload-hint">Supports JPG, PNG formats</p>
+            <p className="upload-hint">Supports JPG, PNG, HEIC formats</p>
           </div>
         )}
       </div>
@@ -142,7 +238,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/*"
+        accept="image/*,.heic,.heif"
         onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
         style={{ display: 'none' }}
       />
