@@ -9,6 +9,11 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ status: 'Backend server running', endpoints: ['/api/analyze-ingredients', '/api/generate-recipes'] });
+});
+
 // Claude Vision API endpoint
 app.post('/api/analyze-ingredients', async (req, res) => {
   try {
@@ -126,6 +131,37 @@ app.post('/api/generate-recipes', async (req, res) => {
     const cuisinePrefs = preferences.food_genres?.join(', ') || 'any';
     const dietaryRestrictions = preferences.dietary_preferences || 'none';
 
+    console.log('🍽️ Recipe generation request:');
+    console.log('- Ingredients:', ingredientList);
+    console.log('- Dietary restrictions:', dietaryRestrictions);
+    console.log('- Cuisine preferences:', cuisinePrefs);
+    console.log('- Full preferences object:', JSON.stringify(preferences, null, 2));
+
+    // Build dietary restriction rules
+    let dietaryRules = '';
+    if (dietaryRestrictions && dietaryRestrictions !== 'none') {
+      const restrictions = dietaryRestrictions.toLowerCase();
+      if (restrictions.includes('vegetarian')) {
+        dietaryRules = `
+CRITICAL DIETARY RESTRICTIONS - MUST FOLLOW:
+- VEGETARIAN: NO meat, poultry, fish, or seafood of any kind
+- Do NOT include: chicken, beef, pork, lamb, turkey, duck, fish, salmon, tuna, shrimp, etc.
+- Use only plant-based proteins: beans, lentils, tofu, tempeh, nuts, seeds, eggs (if lacto-ovo)`;
+      } else if (restrictions.includes('vegan')) {
+        dietaryRules = `
+CRITICAL DIETARY RESTRICTIONS - MUST FOLLOW:
+- VEGAN: NO animal products whatsoever
+- Do NOT include: meat, poultry, fish, dairy, eggs, honey, gelatin
+- Use only plant-based ingredients: vegetables, fruits, grains, legumes, nuts, seeds`;
+      } else if (restrictions.includes('gluten-free')) {
+        dietaryRules = `
+CRITICAL DIETARY RESTRICTIONS - MUST FOLLOW:
+- GLUTEN-FREE: NO wheat, barley, rye, or gluten-containing ingredients
+- Do NOT include: bread, pasta, flour, soy sauce (unless gluten-free)
+- Use: rice, quinoa, corn, potatoes, gluten-free alternatives`;
+      }
+    }
+
     const prompt = `You are a professional chef helping someone create delicious recipes using their available ingredients.
 
 AVAILABLE INGREDIENTS: ${ingredientList}
@@ -133,12 +169,14 @@ AVAILABLE INGREDIENTS: ${ingredientList}
 USER PREFERENCES:
 - Preferred cuisines: ${cuisinePrefs}
 - Dietary restrictions: ${dietaryRestrictions}
+${dietaryRules}
 
 Please generate ${count} creative, practical recipes that:
-1. Use as many of the available ingredients as possible
-2. Respect the user's cuisine and dietary preferences
-3. Include authentic cooking techniques when relevant (especially for Korean, Moroccan, West African, Caribbean, Panamanian dishes)
-4. Minimize the need for additional ingredients
+1. STRICTLY follow all dietary restrictions - this is mandatory
+2. Use as many of the available ingredients as possible
+3. Respect the user's cuisine preferences
+4. Include authentic cooking techniques when relevant (especially for Korean, Moroccan, West African, Caribbean, Panamanian dishes)
+5. Minimize the need for additional ingredients
 
 For each recipe, provide the information in this EXACT JSON format:
 
@@ -161,8 +199,10 @@ For each recipe, provide the information in this EXACT JSON format:
   ]
 }
 
-IMPORTANT:
+CRITICAL REQUIREMENTS:
+- MUST strictly follow dietary restrictions - NO exceptions
 - Only suggest recipes you can make with the available ingredients (plus common pantry staples like salt, pepper, oil)
+- Include appropriate dietary_tags for each recipe
 - Return valid JSON only - no extra text before or after`;
 
     const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {

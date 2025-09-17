@@ -56,7 +56,7 @@ const RecipeDiscovery: React.FC = () => {
       // Fallback to mock data if API fails
       return [
         'eggs', 'milk', 'bread', 'tomatoes', 'onions', 'cheese',
-        'chicken', 'rice', 'olive oil', 'garlic'
+        'tofu', 'rice', 'olive oil', 'garlic', 'beans', 'lentils'
       ]
     }
   }
@@ -239,6 +239,11 @@ const RecipeDiscovery: React.FC = () => {
 
   return (
     <div className="recipe-discovery">
+      <div className="recipe-header">
+        <h2>Recipe Discovery</h2>
+        <p className="recipe-subtitle">Based on your uploaded ingredients</p>
+      </div>
+
       <div className="ingredients-summary">
         <h3>Your Available Ingredients</h3>
         <div className="ingredient-tags">

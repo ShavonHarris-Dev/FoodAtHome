@@ -26,10 +26,6 @@ const Dashboard: React.FC = () => {
       setShowPayment(!profile.has_paid)
       setShowRecipeDiscovery(profile.has_paid && uploadedImages.length > 0)
 
-      // Auto-switch to recipes tab if user has images and is paid
-      if (profile.has_paid && uploadedImages.length > 0 && activeTab === 'setup') {
-        setActiveTab('recipes')
-      }
     }
   }, [profile, uploadedImages, activeTab])
 
