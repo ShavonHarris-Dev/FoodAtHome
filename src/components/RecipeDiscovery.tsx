@@ -20,6 +20,8 @@ const RecipeDiscovery: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingRecipe, setSavingRecipe] = useState<string | null>(null)
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeWithMissing | null>(null)
+  const [showFullRecipe, setShowFullRecipe] = useState(false)
 
   const analyzeIngredients = async (imageUrls: string[]): Promise<string[]> => {
     try {
@@ -97,6 +99,16 @@ const RecipeDiscovery: React.FC = () => {
     } finally {
       setSavingRecipe(null)
     }
+  }
+
+  const viewFullRecipe = (recipe: RecipeWithMissing) => {
+    setSelectedRecipe(recipe)
+    setShowFullRecipe(true)
+  }
+
+  const closeFullRecipe = () => {
+    setShowFullRecipe(false)
+    setSelectedRecipe(null)
   }
 
   const getUserPreferences = (): UserPreferences => {
@@ -337,7 +349,12 @@ const RecipeDiscovery: React.FC = () => {
                 )}
 
                 <div className="recipe-actions">
-                  <button className="view-recipe-btn">View Full Recipe</button>
+                  <button
+                    className="view-recipe-btn"
+                    onClick={() => viewFullRecipe(recipe)}
+                  >
+                    View Full Recipe
+                  </button>
                   {!recipe.is_saved ? (
                     <button
                       className="save-recipe-btn"
@@ -355,6 +372,91 @@ const RecipeDiscovery: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Full Recipe Modal */}
+      {showFullRecipe && selectedRecipe && (
+        <div className="recipe-modal-overlay" onClick={closeFullRecipe}>
+          <div className="recipe-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="recipe-modal-header">
+              <h2>{selectedRecipe.title}</h2>
+              <button className="close-modal-btn" onClick={closeFullRecipe}>
+                ✕
+              </button>
+            </div>
+
+            <div className="recipe-modal-content">
+              <div className="recipe-details">
+                <div className="recipe-meta">
+                  <span>🕐 Prep: {selectedRecipe.prep_time}min</span>
+                  <span>🔥 Cook: {selectedRecipe.cook_time}min</span>
+                  <span>👥 Serves: {selectedRecipe.servings}</span>
+                  <span>📊 {selectedRecipe.difficulty}</span>
+                </div>
+
+                <div className="recipe-cuisine-tags">
+                  <span className="cuisine-tag">
+                    {Array.isArray(selectedRecipe.cuisine)
+                      ? selectedRecipe.cuisine.join(', ')
+                      : selectedRecipe.cuisine}
+                  </span>
+                  {selectedRecipe.dietary_tags && selectedRecipe.dietary_tags.length > 0 && (
+                    selectedRecipe.dietary_tags.map((tag, index) => (
+                      <span key={index} className="dietary-tag">{tag}</span>
+                    ))
+                  )}
+                </div>
+
+                <p className="recipe-description">{selectedRecipe.description}</p>
+              </div>
+
+              <div className="recipe-sections">
+                <div className="ingredients-section">
+                  <h3>🥘 Ingredients</h3>
+                  <ul className="ingredients-list">
+                    {selectedRecipe.ingredients.map((ingredient, index) => (
+                      <li key={index}>{ingredient}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="instructions-section">
+                  <h3>📋 Instructions</h3>
+                  <ol className="instructions-list">
+                    {selectedRecipe.instructions.map((instruction, index) => (
+                      <li key={index}>{instruction}</li>
+                    ))}
+                  </ol>
+                </div>
+
+                {selectedRecipe.tips && selectedRecipe.tips.length > 0 && (
+                  <div className="tips-section">
+                    <h3>💡 Tips</h3>
+                    <ul className="tips-list">
+                      {selectedRecipe.tips.map((tip, index) => (
+                        <li key={index}>{tip}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <div className="recipe-modal-actions">
+                {!selectedRecipe.is_saved ? (
+                  <button
+                    className="save-recipe-btn"
+                    onClick={() => saveRecipe(selectedRecipe)}
+                    disabled={savingRecipe === selectedRecipe.id}
+                  >
+                    {savingRecipe === selectedRecipe.id ? 'Saving...' : '❤️ Save Recipe'}
+                  </button>
+                ) : (
+                  <span className="saved-indicator">✅ Recipe Saved</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

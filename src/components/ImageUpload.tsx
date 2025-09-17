@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import heic2any from 'heic2any'
@@ -16,6 +16,35 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
   const [converting, setConverting] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Load existing images when component mounts
+  useEffect(() => {
+    const loadExistingImages = async () => {
+      if (!user || !supabase) return
+
+      try {
+        const { data: images, error } = await supabase
+          .from('user_images')
+          .select('image_url')
+          .eq('user_id', user.id)
+
+        if (error) {
+          console.error('Error loading existing images:', error)
+          return
+        }
+
+        if (images && images.length > 0) {
+          const imageUrls = images.map(img => img.image_url)
+          setUploadedImages(imageUrls)
+          onImagesUploaded(imageUrls)
+        }
+      } catch (error) {
+        console.error('Error loading existing images:', error)
+      }
+    }
+
+    loadExistingImages()
+  }, [user, onImagesUploaded])
 
   // Check if file is HEIC format
   const isHEIC = (file: File): boolean => {

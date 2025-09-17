@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useProfile } from '../hooks/useProfile'
+import { supabase } from '../lib/supabase'
 import ImageUpload from './ImageUpload'
 import FoodGenreSelector from './FoodGenreSelector'
 import DietaryPreferences from './DietaryPreferences'
@@ -25,9 +26,36 @@ const Dashboard: React.FC = () => {
       setDietaryPreferences(profile.dietary_preferences || '')
       setShowPayment(!profile.has_paid)
       setShowRecipeDiscovery(profile.has_paid && uploadedImages.length > 0)
-
     }
   }, [profile, uploadedImages, activeTab])
+
+  // Load existing uploaded images when component mounts
+  useEffect(() => {
+    const loadExistingImages = async () => {
+      if (!user || !supabase) return
+
+      try {
+        const { data: images, error } = await supabase
+          .from('user_images')
+          .select('image_url')
+          .eq('user_id', user.id)
+
+        if (error) {
+          console.error('Error loading existing images:', error)
+          return
+        }
+
+        if (images && images.length > 0) {
+          const imageUrls = images.map(img => img.image_url)
+          setUploadedImages(imageUrls)
+        }
+      } catch (error) {
+        console.error('Error loading existing images:', error)
+      }
+    }
+
+    loadExistingImages()
+  }, [user])
 
   const handleSavePreferences = async () => {
     try {
