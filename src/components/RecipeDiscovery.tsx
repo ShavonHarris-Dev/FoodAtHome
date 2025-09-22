@@ -4,7 +4,11 @@ import { useProfile } from '../hooks/useProfile'
 import { supabase } from '../lib/supabase'
 import { ClaudeRecipeService, GeneratedRecipe, UserPreferences } from '../lib/claudeRecipeGeneration'
 import { SavedRecipesService } from '../lib/savedRecipesService'
+import { ClaudeVisionService } from '../lib/claudeVision'
+import { UsageTrackingService, UsageLimits } from '../lib/usageTracking'
 import './RecipeDiscovery.css'
+import './IngredientConfirmation.css'
+import './UsageSummary.css'
 
 interface RecipeWithMissing extends GeneratedRecipe {
   missing_ingredients: string[]
@@ -32,30 +36,30 @@ const RecipeDiscovery: React.FC = () => {
   const [showFullRecipe, setShowFullRecipe] = useState(false)
   const [isEditingIngredients, setIsEditingIngredients] = useState(false)
   const [editableIngredients, setEditableIngredients] = useState<string>('')
+  const [confirmedIngredients, setConfirmedIngredients] = useState<string[]>([])
+  const [possibleIngredients, setPossibleIngredients] = useState<string[]>([])
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [usageLimits, setUsageLimits] = useState<UsageLimits | null>(null)
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
 
   const analyzeIngredients = async (imageUrls: string[]): Promise<string[]> => {
     try {
       console.log('🔍 Starting ingredient analysis with image URLs:', imageUrls)
 
-      // Call our backend instead of Claude directly
-      const response = await fetch('http://localhost:3001/api/analyze-ingredients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageUrls })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Backend API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-      const ingredients = data.ingredients || []
+      // Use Claude Vision service directly with new improved prompts and user preferences
+      const ingredients = await ClaudeVisionService.analyzeIngredients(imageUrls, 0.8, profile)
 
       console.log(`✅ Successfully analyzed ${imageUrls.length} images, found ${ingredients.length} ingredients:`, ingredients)
 
       if (ingredients.length > 0) {
+        // Separate high-confidence vs medium-confidence ingredients
+        const highConfidence = ingredients.filter((_, index) => index < Math.ceil(ingredients.length * 0.7))
+        const mediumConfidence = ingredients.filter((_, index) => index >= Math.ceil(ingredients.length * 0.7))
+
+        setConfirmedIngredients(highConfidence)
+        setPossibleIngredients(mediumConfidence)
+        setShowConfirmation(mediumConfidence.length > 0)
+
         return ingredients
       }
 
@@ -154,6 +158,67 @@ const RecipeDiscovery: React.FC = () => {
     setEditableIngredients('')
   }
 
+  const confirmIngredient = (ingredient: string) => {
+    setConfirmedIngredients([...confirmedIngredients, ingredient])
+    setPossibleIngredients(possibleIngredients.filter(item => item !== ingredient))
+
+    // Update main ingredients list
+    const updatedIngredients = [...userIngredients, ingredient]
+    setUserIngredients(updatedIngredients)
+  }
+
+  const rejectIngredient = (ingredient: string) => {
+    setPossibleIngredients(possibleIngredients.filter(item => item !== ingredient))
+  }
+
+  const finishConfirmation = async () => {
+    setShowConfirmation(false)
+
+    // If we have new confirmed ingredients, regenerate recipes
+    if (confirmedIngredients.length !== userIngredients.length) {
+      await generateRecipes(userIngredients)
+    }
+  }
+
+  const clearCacheAndReanalyze = async () => {
+    if (!user || !supabase) {
+      setError('User not authenticated')
+      return
+    }
+
+    // Clear localStorage cache
+    localStorage.removeItem('user-ingredients')
+    localStorage.removeItem('suggested-recipes')
+
+    // Reset component state
+    setUserIngredients([])
+    setSuggestedRecipes([])
+    setError(null)
+    setLoading(true)
+
+    try {
+      // Get fresh images and reanalyze
+      const { data: images } = await supabase
+        .from('user_images')
+        .select('image_url')
+        .eq('user_id', user.id)
+
+      if (images && images.length > 0) {
+        const imageUrls = images.map(img => img.image_url)
+        const ingredients = await analyzeIngredients(imageUrls)
+        setUserIngredients(ingredients)
+        await generateRecipes(ingredients)
+      } else {
+        setError('Please upload some ingredient photos first')
+      }
+    } catch (error) {
+      console.error('Failed to reanalyze ingredients:', error)
+      setError('Failed to analyze ingredients. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getUserPreferences = (): UserPreferences => {
     return {
       dietary_preferences: profile?.dietary_preferences || undefined,
@@ -182,13 +247,31 @@ const RecipeDiscovery: React.FC = () => {
         return
       }
 
+      // Check usage limits before generating
+      if (user) {
+        const usageCheck = await UsageTrackingService.canGenerateRecipes(user.id, profile)
+        setUsageLimits(usageCheck.limits)
+
+        if (!usageCheck.canGenerate) {
+          setError(usageCheck.reason || 'Usage limit exceeded')
+          setShowUpgradePrompt(true)
+          return
+        }
+
+        // Track this generation attempt
+        await UsageTrackingService.trackRecipeGeneration(user.id, usageCheck.limits.recipesPerGeneration)
+      }
+
+      // Use tier-appropriate recipe count
+      const recipeCount = usageLimits?.recipesPerGeneration || 3
+
       // Call our backend for recipe generation
       const response = await fetch('http://localhost:3001/api/generate-recipes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ingredients, preferences, count: 8 })
+        body: JSON.stringify({ ingredients, preferences, count: recipeCount })
       })
 
       if (!response.ok) {
@@ -260,15 +343,35 @@ const RecipeDiscovery: React.FC = () => {
     localStorage.setItem('suggested-recipes', JSON.stringify(suggestedRecipes))
   }, [suggestedRecipes])
 
+  // Load usage limits when component mounts
+  useEffect(() => {
+    const loadUsageLimits = async () => {
+      if (user && profile) {
+        const limits = await UsageTrackingService.getUserUsageLimits(user.id, profile)
+        setUsageLimits(limits)
+      }
+    }
+    loadUsageLimits()
+  }, [user, profile])
+
   useEffect(() => {
     const loadUserIngredientsAndRecipes = async () => {
-      if (!user || !supabase) return
+      if (!user || !supabase) {
+        setLoading(false)
+        return
+      }
 
       // If we already have cached ingredients and recipes, just stop loading
       if (userIngredients.length > 0 && suggestedRecipes.length > 0) {
         setLoading(false)
         return
       }
+
+      // Safety timeout to ensure loading never gets stuck
+      const timeoutId = setTimeout(() => {
+        console.warn('⏰ Loading timeout reached, forcing completion')
+        setLoading(false)
+      }, 30000) // 30 second timeout
 
       try {
         // Get user's uploaded images
@@ -285,8 +388,13 @@ const RecipeDiscovery: React.FC = () => {
             const ingredients = await analyzeIngredients(imageUrls)
             setUserIngredients(ingredients)
 
-            // Generate recipes with Claude AI
-            await generateRecipes(ingredients)
+            // Generate recipes with Claude AI (even if no ingredients found)
+            if (ingredients.length > 0) {
+              await generateRecipes(ingredients)
+            } else {
+              console.log('🍳 No ingredients detected, will show saved recipes instead')
+              await loadSavedRecipes([])
+            }
           } else if (suggestedRecipes.length === 0) {
             // We have ingredients but no recipes, generate recipes
             await generateRecipes(userIngredients)
@@ -305,6 +413,7 @@ const RecipeDiscovery: React.FC = () => {
         }
         await loadSavedRecipes(userIngredients)
       } finally {
+        clearTimeout(timeoutId)
         setLoading(false)
       }
     }
@@ -347,13 +456,22 @@ const RecipeDiscovery: React.FC = () => {
         <div className="ingredients-header">
           <h3>Your Available Ingredients</h3>
           {!isEditingIngredients && (
-            <button
-              className="edit-ingredients-btn"
-              onClick={startEditingIngredients}
-              title="Edit or add ingredients manually"
-            >
-              ✏️ Edit
-            </button>
+            <div className="ingredient-buttons">
+              <button
+                className="edit-ingredients-btn"
+                onClick={startEditingIngredients}
+                title="Edit or add ingredients manually"
+              >
+                ✏️ Edit
+              </button>
+              <button
+                className="clear-cache-btn"
+                onClick={clearCacheAndReanalyze}
+                title="Clear cache and reanalyze fresh photos"
+              >
+                🔄 Fresh Analysis
+              </button>
+            </div>
           )}
         </div>
 
@@ -378,14 +496,58 @@ const RecipeDiscovery: React.FC = () => {
               💡 Tip: Add ingredients that Claude missed or remove incorrect ones
             </p>
           </div>
+        ) : showConfirmation ? (
+          <div className="ingredient-confirmation">
+            <h4>🤔 Confirm These Ingredients</h4>
+            <p>We detected some additional items. Please confirm which ones you actually have:</p>
+
+            <div className="possible-ingredients">
+              {possibleIngredients.map((ingredient, index) => (
+                <div key={index} className="ingredient-confirmation-item">
+                  <span className="ingredient-name">{ingredient}</span>
+                  <div className="confirmation-buttons">
+                    <button
+                      className="confirm-btn"
+                      onClick={() => confirmIngredient(ingredient)}
+                      title="I have this"
+                    >
+                      ✅
+                    </button>
+                    <button
+                      className="reject-btn"
+                      onClick={() => rejectIngredient(ingredient)}
+                      title="I don't have this"
+                    >
+                      ❌
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {possibleIngredients.length === 0 && (
+              <div className="confirmation-complete">
+                <p>✅ All ingredients confirmed!</p>
+                <button
+                  className="finish-confirmation-btn"
+                  onClick={finishConfirmation}
+                >
+                  Generate Recipes
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="ingredient-tags">
             {userIngredients.length > 0 ? (
-              userIngredients.map((ingredient, index) => (
-                <span key={index} className="ingredient-tag">
-                  {ingredient}
-                </span>
-              ))
+              <>
+                <h4>✅ Confirmed Ingredients ({userIngredients.length})</h4>
+                {userIngredients.map((ingredient, index) => (
+                  <span key={index} className="ingredient-tag confirmed">
+                    {ingredient}
+                  </span>
+                ))}
+              </>
             ) : (
               <p className="no-ingredients">
                 No ingredients detected yet. Upload photos or manually add ingredients above.
@@ -421,6 +583,66 @@ const RecipeDiscovery: React.FC = () => {
             )}
           </div>
           <p className="preferences-note">Recipes are generated to match your preferences</p>
+        </div>
+      )}
+
+      {usageLimits && usageLimits.isBasicTier && (
+        <div className="usage-summary">
+          <div className="tier-info">
+            <h4>📊 Basic Plan Usage</h4>
+            <div className="usage-stats">
+              <span className="stat">
+                <strong>{usageLimits.recipesPerGeneration}</strong> recipes per generation
+              </span>
+              <span className="stat">
+                <strong>{usageLimits.remainingGenerations}</strong> of {usageLimits.maxGenerationsPerWeek} generations left this week
+              </span>
+            </div>
+            {usageLimits.remainingGenerations <= 1 && (
+              <div className="upgrade-prompt">
+                <p>⚡ Almost at your weekly limit! </p>
+                <button className="upgrade-btn" onClick={() => setShowUpgradePrompt(true)}>
+                  Upgrade to Premium for Unlimited Recipes
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showUpgradePrompt && (
+        <div className="upgrade-modal-overlay" onClick={() => setShowUpgradePrompt(false)}>
+          <div className="upgrade-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>🚀 Upgrade to Premium</h3>
+            <div className="feature-comparison">
+              <div className="plan basic-plan">
+                <h4>Basic Plan</h4>
+                <ul>
+                  <li>3 recipes per generation</li>
+                  <li>5 generations per week</li>
+                  <li>Basic ingredient detection</li>
+                </ul>
+              </div>
+              <div className="plan premium-plan">
+                <h4>Premium Plan</h4>
+                <ul>
+                  <li>10 recipes per generation</li>
+                  <li>Unlimited generations</li>
+                  <li>Advanced ingredient detection</li>
+                  <li>Priority support</li>
+                  <li>Export recipes to PDF</li>
+                </ul>
+              </div>
+            </div>
+            <div className="modal-buttons">
+              <button className="upgrade-now-btn">
+                Upgrade Now - $9.99/month
+              </button>
+              <button className="cancel-btn" onClick={() => setShowUpgradePrompt(false)}>
+                Maybe Later
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

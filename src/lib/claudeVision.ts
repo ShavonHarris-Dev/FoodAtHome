@@ -14,61 +14,70 @@ interface IngredientWithConfidence {
 export class ClaudeVisionService {
   private static readonly CLAUDE_API_KEY = process.env.REACT_APP_CLAUDE_API_KEY
   private static readonly CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
+  private static readonly BACKEND_URL = 'http://localhost:3001'
 
-  static async analyzeIngredients(imageUrls: string[], confidenceThreshold: number = 0.8): Promise<string[]> {
-    console.log('DEBUG: Claude API Key exists?', !!this.CLAUDE_API_KEY)
-    console.log('DEBUG: All env vars:', {
-      claudeKey: this.CLAUDE_API_KEY?.substring(0, 10) + '...',
-      supabaseUrl: process.env.REACT_APP_SUPABASE_URL?.substring(0, 20) + '...'
-    })
-
-    if (!this.CLAUDE_API_KEY) {
-      console.warn('Claude API key not configured, using fallback')
-      return this.fallbackAnalysis()
-    }
+  static async analyzeIngredients(imageUrls: string[], confidenceThreshold: number = 0.8, userPreferences?: any): Promise<string[]> {
+    console.log('🔍 Starting ingredient analysis via backend with image URLs:', imageUrls)
 
     try {
-      const allIngredients = new Map<string, number>() // ingredient -> highest confidence
-
-      // Process images in batches to avoid overwhelming the API
-      for (const imageUrl of imageUrls.slice(0, 5)) { // Limit to 5 images per analysis
-        const ingredientsWithConfidence = await this.analyzeImage(imageUrl)
-
-        // Keep highest confidence for each ingredient
-        ingredientsWithConfidence.forEach(({ ingredient, confidence }) => {
-          const currentConfidence = allIngredients.get(ingredient) || 0
-          if (confidence > currentConfidence) {
-            allIngredients.set(ingredient, confidence)
-          }
+      // Use backend API instead of direct Claude API calls
+      const response = await fetch(`${this.BACKEND_URL}/api/analyze-ingredients`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageUrls: imageUrls.slice(0, 5), // Limit to 5 images
+          dietaryRestrictions: userPreferences?.dietary_preferences,
+          cuisinePreferences: userPreferences?.food_genres
         })
-      }
-
-      // Filter by confidence threshold and return only ingredient names
-      const result = Array.from(allIngredients.entries())
-        .filter(([, confidence]) => confidence >= confidenceThreshold)
-        .map(([ingredient]) => ingredient)
-        .sort()
-
-      console.log('Claude Vision detected ingredients with confidence filtering:', {
-        threshold: confidenceThreshold,
-        totalDetected: allIngredients.size,
-        passedThreshold: result.length,
-        result
       })
 
-      return result
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Backend API error:', response.status, errorText)
+        throw new Error(`Backend API error: ${response.status} - ${errorText}`)
+      }
+
+      const data = await response.json()
+      console.log('✅ Backend response:', data)
+
+      if (data.error) {
+        console.error('Backend returned error:', data.error)
+        return this.fallbackAnalysis()
+      }
+
+      const ingredients = data.ingredients || []
+
+      console.log('Claude Vision detected ingredients from backend:', {
+        threshold: confidenceThreshold,
+        totalDetected: ingredients.length,
+        result: ingredients
+      })
+
+      return ingredients
 
     } catch (error) {
-      console.error('Claude Vision API failed:', error)
+      console.error('Backend API failed:', error)
+      console.log('🔄 Falling back to local analysis...')
       return this.fallbackAnalysis()
     }
   }
 
   private static async analyzeImage(imageUrl: string): Promise<IngredientWithConfidence[]> {
     try {
+      console.log('🖼️ Analyzing image:', imageUrl)
+
       // Convert image to base64
       const base64Image = await this.urlToBase64(imageUrl)
       const mimeType = this.getMimeType(imageUrl)
+
+      console.log('📸 Image processed:', {
+        url: imageUrl,
+        mimeType,
+        base64Length: base64Image.length,
+        base64Preview: base64Image.substring(0, 50) + '...'
+      })
 
       const requestBody = {
         model: "claude-3-5-sonnet-20241022",
@@ -87,45 +96,48 @@ export class ClaudeVisionService {
               },
               {
                 type: "text",
-                text: `You are analyzing a grocery haul photo to identify food items with confidence scores. Be accurate rather than exhaustive.
+                text: `You are an ingredient detector. Analyze this fridge image systematically.
 
-SCANNING APPROACH:
-Systematically scan the image for clearly identifiable food items. Focus on items you can confidently identify rather than guessing.
+STRICT CONSTRAINTS:
+- List only ingredients you can see with 90%+ confidence
+- Do NOT guess items that "should" be in fridges
+- Do NOT use generic terms like "fruit" - specify "apple" or say nothing
+- Maximum 15 items total
+- Only include food items, not containers
 
-CONFIDENCE SCORING (0.0 to 1.0):
-- 0.9-1.0: Clearly visible, labeled, or unmistakable (e.g., labeled Chobani yogurt, whole eggs, clear tomatoes)
-- 0.7-0.8: Very likely but not 100% certain (e.g., red peppers that could be bell peppers vs hot peppers)
-- 0.5-0.6: Possible but uncertain (e.g., partial labels, items mostly obscured)
-- Below 0.5: Don't include these items
+PROCESS:
+1. HIGH CONFIDENCE: Items with visible labels or unmistakable shapes
+2. MEDIUM CONFIDENCE: Partially visible items you can reasonably identify
+3. EXCLUDE: Generic categories, duplicates, unclear items
 
-WHAT TO IDENTIFY:
-- Fresh produce: fruits, vegetables (be specific: "tomatoes" not "vegetables")
-- Packaged goods with visible labels
-- Dairy products (milk, cheese, yogurt)
-- Proteins (eggs, meat, fish)
-- Pantry items (oils, sauces, condiments)
-- Beverages
+FORBIDDEN TERMS: fruit, fruits, vegetables, veggies, condiments, sauces, dressings, grains, nuts, herbs, spices, oils, dairy, produce, meat, beverages
 
-WHAT TO AVOID:
-- Generic categories ("spices", "grains") unless you can see specific items
-- Kitchen tools, containers, bags
-- Items that are completely obscured
-- Wild guesses based on shapes alone
+SPECIFIC FOODS TO DETECT (if visible):
+✅ Root vegetables: yam, cassava, sweet potato, taro, plantain
+✅ International foods: okra, bok choy, napa cabbage, daikon
+✅ Specific varieties: gala apples, roma tomatoes, yukon potatoes
 
-RESPONSE FORMAT:
-Return ONLY a valid JSON array with this exact structure:
-[
-  {"ingredient": "tomatoes", "confidence": 0.95},
-  {"ingredient": "eggs", "confidence": 0.98},
-  {"ingredient": "avocados", "confidence": 0.92}
-]
+FORMAT (JSON only):
+{
+  "high_confidence": [
+    {"name": "hellmann's mayonnaise", "evidence": "clear label visible"},
+    {"name": "avocados", "evidence": "distinctive green shape and texture"}
+  ],
+  "medium_confidence": [
+    {"name": "red bell peppers", "evidence": "red color visible but partially obscured"}
+  ]
+}
 
-Use simple, common ingredient names. Be conservative with confidence scores - it's better to exclude uncertain items than include false positives.`
+EXAMPLES:
+✅ GOOD: "chobani greek yogurt", "carbone marinara sauce", "gala apples", "yam", "cassava", "okra"
+❌ BAD: "yogurt", "sauce", "fruit", "condiments", "vegetables", "root vegetables"`
               }
             ]
           }
         ]
       }
+
+      console.log('🚀 Sending request to Claude API...')
 
       const response = await fetch(this.CLAUDE_API_URL, {
         method: 'POST',
@@ -137,12 +149,16 @@ Use simple, common ingredient names. Be conservative with confidence scores - it
         body: JSON.stringify(requestBody)
       })
 
+      console.log('📡 Claude API response status:', response.status)
+
       if (!response.ok) {
         const errorText = await response.text()
+        console.error('❌ Claude API error response:', errorText)
         throw new Error(`Claude API error: ${response.status} - ${errorText}`)
       }
 
       const data: ClaudeVisionResponse = await response.json()
+      console.log('📨 Claude API response received, parsing...')
       return this.parseClaudeResponse(data)
 
     } catch (error) {
@@ -193,10 +209,14 @@ Use simple, common ingredient names. Be conservative with confidence scores - it
 
   private static parseClaudeResponse(data: ClaudeVisionResponse): IngredientWithConfidence[] {
     try {
+      console.log('🔍 Raw Claude Response:', JSON.stringify(data, null, 2))
+
       const textContent = data.content
         .filter(item => item.type === 'text')
         .map(item => item.text)
         .join(' ')
+
+      console.log('📝 Extracted text content:', textContent)
 
       if (!textContent) {
         console.warn('No text content in Claude response')
@@ -205,17 +225,78 @@ Use simple, common ingredient names. Be conservative with confidence scores - it
 
       // Try to parse as JSON first
       try {
-        const jsonMatch = textContent.match(/\[[\s\S]*\]/)
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/)
+        console.log('🔍 JSON match found:', !!jsonMatch)
         if (jsonMatch) {
-          const jsonArray = JSON.parse(jsonMatch[0])
+          console.log('📋 JSON content:', jsonMatch[0])
+          const jsonData = JSON.parse(jsonMatch[0])
+          console.log('✅ Parsed JSON data:', jsonData)
 
-          return jsonArray
-            .filter((item: any) => item.ingredient && typeof item.confidence === 'number')
-            .map((item: any) => ({
-              ingredient: this.normalizeIngredient(item.ingredient.toLowerCase().trim()),
-              confidence: Math.max(0, Math.min(1, item.confidence)) // Clamp between 0-1
-            }))
-            .filter((item: IngredientWithConfidence) => this.isValidIngredient(item.ingredient))
+          // Handle new structured confidence format
+          if (jsonData.high_confidence || jsonData.medium_confidence) {
+            const allItems: IngredientWithConfidence[] = []
+
+            // Process high confidence items (0.95 confidence)
+            if (jsonData.high_confidence && Array.isArray(jsonData.high_confidence)) {
+              console.log('🔥 Processing high confidence items:', jsonData.high_confidence)
+              const highConfidenceItems = jsonData.high_confidence
+                .filter((item: any) => {
+                  const isValid = item.name && this.isValidIngredient(item.name.toLowerCase().trim())
+                  console.log(`⚡ High confidence item "${item.name}" valid: ${isValid}`)
+                  return isValid
+                })
+                .map((item: any) => ({
+                  ingredient: this.normalizeIngredient(item.name.toLowerCase().trim()),
+                  confidence: 0.95
+                }))
+              console.log('✅ High confidence processed items:', highConfidenceItems)
+              allItems.push(...highConfidenceItems)
+            }
+
+            // Process medium confidence items (0.8 confidence)
+            if (jsonData.medium_confidence && Array.isArray(jsonData.medium_confidence)) {
+              console.log('🟡 Processing medium confidence items:', jsonData.medium_confidence)
+              const mediumConfidenceItems = jsonData.medium_confidence
+                .filter((item: any) => {
+                  const isValid = item.name && this.isValidIngredient(item.name.toLowerCase().trim())
+                  console.log(`⚡ Medium confidence item "${item.name}" valid: ${isValid}`)
+                  return isValid
+                })
+                .map((item: any) => ({
+                  ingredient: this.normalizeIngredient(item.name.toLowerCase().trim()),
+                  confidence: 0.8
+                }))
+              console.log('✅ Medium confidence processed items:', mediumConfidenceItems)
+              allItems.push(...mediumConfidenceItems)
+            }
+
+            console.log('🎯 Final processed items before return:', allItems)
+            return allItems
+          }
+
+          // Fallback to old format if present
+          if (jsonData.items && Array.isArray(jsonData.items)) {
+            return jsonData.items
+              .filter((item: any) => {
+                // Pre-filter before processing
+                if (!item.name || typeof item.confidence !== 'number') return false
+
+                const itemName = item.name.toLowerCase().trim()
+                return this.isValidIngredient(itemName)
+              })
+              .map((item: any) => {
+                // Combine name and variant if present
+                let fullName = item.name.toLowerCase().trim()
+                if (item.variant) {
+                  fullName = `${item.variant.toLowerCase().trim()} ${fullName}`
+                }
+
+                return {
+                  ingredient: this.normalizeIngredient(fullName),
+                  confidence: Math.max(0, Math.min(1, item.confidence)) // Clamp between 0-1
+                }
+              })
+          }
         }
       } catch (jsonError) {
         console.warn('Failed to parse JSON response, falling back to text parsing')
@@ -241,27 +322,44 @@ Use simple, common ingredient names. Be conservative with confidence scores - it
   }
 
   private static isValidIngredient(item: string): boolean {
-    // Filter out non-food items and invalid responses
-    const invalidItems = [
-      'kitchen', 'fridge', 'refrigerator', 'shelf', 'container', 'bottle', 'jar', 'package',
-      'can', 'box', 'bag', 'plastic', 'glass', 'metal', 'wood', 'counter', 'table',
-      'wall', 'door', 'light', 'label', 'brand', 'see', 'visible', 'appears', 'looks',
+    const itemLower = item.toLowerCase().trim()
+
+    // Block items that are too short or non-alphabetic
+    if (item.length < 2 || !/[a-zA-Z]/.test(item)) {
+      console.log(`🚫 Blocked too short/non-alphabetic: "${item}"`)
+      return false
+    }
+
+    // Targeted blocklist based on user feedback
+    const blockedGenericTerms = [
+      // Pure categories (too generic)
+      'fruit', 'fruits', 'fresh produce', 'vegetables', 'veggies', 'leafy greens',
+      'condiments', 'sauces', 'dressings', 'grains', 'nuts', 'herbs', 'spices',
+      'oils', 'cereals', 'legumes', 'dairy', 'produce', 'meat', 'seafood',
+      'beverages', 'drinks', 'juice', 'citrus fruits', 'root vegetables',
+
+      // Over-generalized terms that should be specific
+      'oil', 'seasonings', 'cereal', 'oatmeal', 'granola',
+
+      // Container/non-food items
+      'bowls', 'baskets', 'containers', 'bottle', 'jar', 'package', 'can', 'box', 'bag',
+      'plastic', 'glass', 'metal', 'wood', 'kitchen', 'fridge', 'refrigerator', 'shelf',
+
+      // Vague descriptors
       'various', 'some', 'many', 'several', 'different', 'other', 'items', 'food',
-      'ingredients', 'products', 'goods'
+      'ingredients', 'products', 'goods', 'brand', 'label', 'see', 'visible', 'appears',
+
+      // Known hallucinations that should still be blocked
+      'chocolate', 'jam', 'butter'
     ]
 
-    const itemLower = item.toLowerCase()
-
-    // Too short or contains invalid words
-    if (item.length < 2 || invalidItems.some(invalid => itemLower.includes(invalid))) {
+    // Block exact matches to generic terms only
+    if (blockedGenericTerms.includes(itemLower)) {
+      console.log(`🚫 Blocked generic term: "${item}"`)
       return false
     }
 
-    // Should contain letters (not just numbers/symbols)
-    if (!/[a-zA-Z]/.test(item)) {
-      return false
-    }
-
+    // Allow everything else (specific items will pass through)
     return true
   }
 
@@ -273,36 +371,45 @@ Use simple, common ingredient names. Be conservative with confidence scores - it
       .replace(/[^\w\s]/g, '') // Remove punctuation
       .replace(/\s+/g, ' ') // Normalize whitespace
 
-    // Common normalizations
+    // Enhanced normalizations based on user feedback
     const normalizations: Record<string, string> = {
+      // Unify singular/plural
       'tomato': 'tomatoes',
       'onion': 'onions',
       'carrot': 'carrots',
-      'potato': 'potatoes',
-      'egg': 'eggs',
       'apple': 'apples',
-      'banana': 'bananas',
+      'orange': 'oranges',
       'lemon': 'lemons',
       'lime': 'limes',
-      'bell pepper': 'bell peppers',
-      'green pepper': 'bell peppers',
-      'red pepper': 'bell peppers',
-      'yellow pepper': 'bell peppers',
-      'chicken breast': 'chicken',
-      'ground beef': 'beef',
-      'olive oil': 'olive oil',
-      'vegetable oil': 'oil',
-      'cooking oil': 'oil',
-      'white bread': 'bread',
-      'whole wheat bread': 'bread',
+      'potato': 'potatoes',
+      'yams': 'yam',
+
+      // Collapse oil variants
+      'vegetable oil': 'olive oil',
+      'cooking oil': 'olive oil',
+      'cooking oils': 'olive oil',
+
+      // Consolidate leafy greens
+      'leafy greens': 'lettuce',
+      'salad greens': 'lettuce',
+
+      // Specific condiments (keep these specific)
+      'a1': 'a1 sauce',
+      'hellmanns': 'hellmanns mayo',
+
+      // Pepper variants
+      'bell pepper': 'peppers',
+      'green pepper': 'peppers',
+      'red pepper': 'peppers',
+
+      // Cheese variants (keep general for cooking flexibility)
       'cheddar cheese': 'cheese',
-      'mozzarella cheese': 'cheese',
-      'swiss cheese': 'cheese'
+      'mozzarella cheese': 'cheese'
     }
 
     // Apply normalizations
     for (const [key, value] of Object.entries(normalizations)) {
-      if (normalized.includes(key)) {
+      if (normalized === key || normalized.includes(key)) {
         normalized = value
         break
       }

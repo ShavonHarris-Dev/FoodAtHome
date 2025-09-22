@@ -136,6 +136,38 @@
   background: rgba(220, 53, 69, 0.8);
 }
 
+.upload-tips {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.upload-tips h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 16px;
+}
+
+.tips-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.tip-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.tip-icon {
+  font-size: 16px;
+  min-width: 20px;
+}
+
 @media (max-width: 768px) {
   .upload-zone {
     padding: 20px;
@@ -148,5 +180,9 @@
   .image-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 10px;
+  }
+
+  .tips-grid {
+    grid-template-columns: 1fr;
   }
 }

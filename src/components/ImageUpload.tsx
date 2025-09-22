@@ -235,6 +235,28 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
       <h3>Upload Your Ingredient Photos</h3>
       <p>Upload up to {maxImages} photos of your fridge, pantry, or ingredients ({uploadedImages.length}/{maxImages})</p>
 
+      <div className="upload-tips">
+        <h4>📸 Tips for Better Detection:</h4>
+        <div className="tips-grid">
+          <div className="tip-item">
+            <span className="tip-icon">✅</span>
+            <span>Take multiple angles: shelves, door, drawers separately</span>
+          </div>
+          <div className="tip-item">
+            <span className="tip-icon">✅</span>
+            <span>Ensure good lighting - avoid shadows</span>
+          </div>
+          <div className="tip-item">
+            <span className="tip-icon">✅</span>
+            <span>Move items to show labels clearly</span>
+          </div>
+          <div className="tip-item">
+            <span className="tip-icon">❌</span>
+            <span>Avoid blurry or dark photos</span>
+          </div>
+        </div>
+      </div>
+
       <div
         className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
         onDrop={handleDrop}

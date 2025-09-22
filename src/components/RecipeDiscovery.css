@@ -49,6 +49,11 @@
   font-size: 1.2rem;
 }
 
+.ingredient-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .edit-ingredients-btn {
   background: #3498db;
   color: white;
@@ -62,6 +67,21 @@
 
 .edit-ingredients-btn:hover {
   background: #2980b9;
+}
+
+.clear-cache-btn {
+  background: #e67e22;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.clear-cache-btn:hover {
+  background: #d35400;
 }
 
 .ingredient-editor {

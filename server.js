@@ -9,6 +9,150 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// Ingredient processing utilities
+function parseIngredientsFromResponse(textContent, dietaryRestrictions = null) {
+  try {
+    // Try to parse as JSON first
+    const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const jsonData = JSON.parse(jsonMatch[0]);
+
+      const allItems = [];
+
+      // Process high confidence items (0.95 confidence)
+      if (jsonData.high_confidence && Array.isArray(jsonData.high_confidence)) {
+        jsonData.high_confidence
+          .filter(item => item.name && isValidIngredient(item.name.toLowerCase().trim(), dietaryRestrictions))
+          .forEach(item => allItems.push(normalizeIngredient(item.name.toLowerCase().trim())));
+      }
+
+      // Process medium confidence items (0.8 confidence)
+      if (jsonData.medium_confidence && Array.isArray(jsonData.medium_confidence)) {
+        jsonData.medium_confidence
+          .filter(item => item.name && isValidIngredient(item.name.toLowerCase().trim(), dietaryRestrictions))
+          .forEach(item => allItems.push(normalizeIngredient(item.name.toLowerCase().trim())));
+      }
+
+      return allItems;
+    }
+  } catch (jsonError) {
+    console.warn('Failed to parse JSON response, falling back to text parsing');
+  }
+
+  // Fallback to comma-separated parsing
+  return textContent
+    .toLowerCase()
+    .split(',')
+    .map(item => item.trim())
+    .filter(item => item.length > 0 && isValidIngredient(item, dietaryRestrictions))
+    .map(item => normalizeIngredient(item));
+}
+
+function normalizeIngredient(item) {
+  let normalized = item.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+
+  // Enhanced normalizations
+  const normalizations = {
+    // Unify singular/plural
+    'tomato': 'tomatoes', 'onion': 'onions', 'carrot': 'carrots',
+    'apple': 'apples', 'orange': 'oranges', 'lemon': 'lemons', 'lime': 'limes',
+    'potato': 'potatoes', 'yams': 'yam',
+
+    // Collapse oil variants
+    'vegetable oil': 'olive oil', 'cooking oil': 'olive oil',
+
+    // Consolidate leafy greens
+    'leafy greens': 'lettuce', 'salad greens': 'lettuce',
+
+    // Pepper variants
+    'bell pepper': 'peppers', 'green pepper': 'peppers', 'red pepper': 'peppers',
+
+    // Cheese variants
+    'cheddar cheese': 'cheese', 'mozzarella cheese': 'cheese'
+  };
+
+  for (const [key, value] of Object.entries(normalizations)) {
+    if (normalized === key || normalized.includes(key)) {
+      normalized = value;
+      break;
+    }
+  }
+
+  return normalized;
+}
+
+function isValidIngredient(item, dietaryRestrictions = null) {
+  const itemLower = item.toLowerCase().trim();
+
+  if (item.length < 2 || !/[a-zA-Z]/.test(item)) return false;
+
+  const blockedTerms = [
+    'fruit', 'fruits', 'vegetables', 'veggies', 'leafy greens', 'condiments',
+    'sauces', 'dressings', 'grains', 'nuts', 'herbs', 'spices', 'oils',
+    'cereals', 'legumes', 'dairy', 'produce', 'meat', 'seafood', 'beverages',
+    'drinks', 'juice', 'root vegetables', 'oil', 'seasonings', 'cereal',
+    'bowls', 'baskets', 'containers', 'bottle', 'jar', 'package', 'can', 'box',
+    'various', 'some', 'many', 'different', 'other', 'items', 'food', 'ingredients'
+  ];
+
+  if (blockedTerms.includes(itemLower)) return false;
+
+  // Apply dietary restriction filtering
+  if (dietaryRestrictions) {
+    const restrictions = dietaryRestrictions.toLowerCase();
+
+    if (restrictions.includes('vegan')) {
+      const veganBlocked = ['milk', 'cheese', 'butter', 'yogurt', 'cream', 'eggs', 'honey', 'meat', 'chicken', 'beef', 'pork', 'fish', 'salmon', 'tuna', 'bacon'];
+      if (veganBlocked.some(blocked => itemLower.includes(blocked))) {
+        console.log(`🌱 Filtered out non-vegan ingredient: ${item}`);
+        return false;
+      }
+    } else if (restrictions.includes('vegetarian')) {
+      const vegetarianBlocked = ['meat', 'chicken', 'beef', 'pork', 'fish', 'salmon', 'tuna', 'bacon', 'ham', 'turkey'];
+      if (vegetarianBlocked.some(blocked => itemLower.includes(blocked))) {
+        console.log(`🥗 Filtered out non-vegetarian ingredient: ${item}`);
+        return false;
+      }
+    }
+
+    if (restrictions.includes('gluten-free')) {
+      const glutenBlocked = ['bread', 'pasta', 'flour', 'wheat', 'barley', 'rye', 'soy sauce'];
+      if (glutenBlocked.some(blocked => itemLower.includes(blocked))) {
+        console.log(`🌾 Filtered out gluten-containing ingredient: ${item}`);
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function deduplicateIngredients(ingredients) {
+  const seen = new Set();
+  const duplicateGroups = [
+    ['lemon', 'lemons'], ['lime', 'limes'], ['fruit', 'fruits'],
+    ['oil', 'oils', 'olive oil'], ['milk', 'milk.'], ['juice', 'juices']
+  ];
+
+  return ingredients.filter(ingredient => {
+    const normalized = ingredient.toLowerCase().trim();
+
+    // Check if we've seen this or a duplicate
+    if (seen.has(normalized)) return false;
+
+    // Check duplicate groups
+    for (const group of duplicateGroups) {
+      if (group.includes(normalized)) {
+        const alreadyHasFromGroup = Array.from(seen).some(seenItem => group.includes(seenItem));
+        if (alreadyHasFromGroup) return false;
+      }
+    }
+
+    seen.add(normalized);
+    return true;
+  });
+}
+
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({ status: 'Backend server running', endpoints: ['/api/analyze-ingredients', '/api/generate-recipes'] });
@@ -17,7 +161,7 @@ app.get('/', (req, res) => {
 // Claude Vision API endpoint
 app.post('/api/analyze-ingredients', async (req, res) => {
   try {
-    const { imageUrls } = req.body;
+    const { imageUrls, dietaryRestrictions, cuisinePreferences } = req.body;
 
     if (!process.env.REACT_APP_CLAUDE_API_KEY) {
       return res.status(500).json({ error: 'Claude API key not configured' });
@@ -63,19 +207,41 @@ app.post('/api/analyze-ingredients', async (req, res) => {
                 },
                 {
                   type: "text",
-                  text: `Analyze this kitchen/fridge/pantry photo and list ALL ingredients and food items you can see.
+                  text: `You are an ingredient detector. Analyze this fridge image systematically.
 
-Instructions:
-- Look carefully at all visible food items
-- Include fresh produce, packaged goods, condiments, spices
-- Use simple, common ingredient names (e.g., "eggs" not "chicken eggs")
-- Include items that are partially visible
-- Don't include kitchen tools or containers
-- Return ONLY a simple comma-separated list
+STRICT CONSTRAINTS:
+- List only ingredients you can see with 90%+ confidence
+- Do NOT guess items that "should" be in fridges
+- Do NOT use generic terms like "fruit" - specify "apple" or say nothing
+- Maximum 15 items total
+- Only include food items, not containers
 
-Example format: eggs, milk, tomatoes, onions, cheese, bread, olive oil
+PROCESS:
+1. HIGH CONFIDENCE: Items with visible labels or unmistakable shapes
+2. MEDIUM CONFIDENCE: Partially visible items you can reasonably identify
+3. EXCLUDE: Generic categories, duplicates, unclear items
 
-What ingredients do you see?`
+FORBIDDEN TERMS: fruit, fruits, vegetables, veggies, condiments, sauces, dressings, grains, nuts, herbs, spices, oils, dairy, produce, meat, beverages
+
+SPECIFIC FOODS TO DETECT (if visible):
+✅ Root vegetables: yam, cassava, sweet potato, taro, plantain
+✅ International foods: okra, bok choy, napa cabbage, daikon
+✅ Specific varieties: gala apples, roma tomatoes, yukon potatoes
+
+FORMAT (JSON only):
+{
+  "high_confidence": [
+    {"name": "hellmann's mayonnaise", "evidence": "clear label visible"},
+    {"name": "avocados", "evidence": "distinctive green shape and texture"}
+  ],
+  "medium_confidence": [
+    {"name": "red bell peppers", "evidence": "red color visible but partially obscured"}
+  ]
+}
+
+EXAMPLES:
+✅ GOOD: "chobani greek yogurt", "carbone marinara sauce", "gala apples", "yam", "cassava", "okra"
+❌ BAD: "yogurt", "sauce", "fruit", "condiments", "vegetables", "root vegetables"`
                 }
               ]
             }]
@@ -93,12 +259,12 @@ What ingredients do you see?`
           .map(item => item.text)
           .join(' ');
 
-        // Parse ingredients
-        const ingredients = textContent
-          .toLowerCase()
-          .split(',')
-          .map(item => item.trim())
-          .filter(item => item.length > 0 && isValidIngredient(item));
+        console.log('🔍 Raw Claude Response for image:', imageUrl.substring(0, 50) + '...');
+        console.log('📝 Text content:', textContent);
+
+        // Parse ingredients with improved handling
+        const ingredients = parseIngredientsFromResponse(textContent, dietaryRestrictions);
+        console.log('🥕 Parsed ingredients:', ingredients);
 
         ingredients.forEach(ingredient => allIngredients.add(ingredient));
 
@@ -108,9 +274,28 @@ What ingredients do you see?`
       }
     }
 
-    const result = Array.from(allIngredients);
-    console.log('Claude Vision detected ingredients:', result);
-    res.json({ ingredients: result });
+    // Convert to array, deduplicate, and add assumed staples
+    let result = Array.from(allIngredients);
+    result = deduplicateIngredients(result);
+
+    // Add assumed staples that are always available
+    const assumedStaples = ['salt', 'pepper', 'olive oil', 'water'];
+    const finalResult = [...new Set([...result, ...assumedStaples])].sort();
+
+    console.log('🥕 Final ingredients after processing:', {
+      detected: result,
+      withStaples: finalResult,
+      deduplicated: allIngredients.size !== result.length
+    });
+
+    res.json({
+      ingredients: finalResult,
+      metadata: {
+        detected: result.length,
+        withStaples: finalResult.length,
+        staples: assumedStaples
+      }
+    });
 
   } catch (error) {
     console.error('Error in analyze-ingredients:', error);
@@ -171,12 +356,18 @@ USER PREFERENCES:
 - Dietary restrictions: ${dietaryRestrictions}
 ${dietaryRules}
 
+CRITICAL CONSTRAINTS:
+🚫 ONLY use ingredients from the available list above
+🚫 Do NOT add ANY ingredients not in the list
+🚫 If a recipe needs something not available, put it under "missing_ingredients"
+🚫 Do NOT assume basic ingredients like garlic, onion, ginger unless they're in the list
+
 Please generate ${count} creative, practical recipes that:
 1. STRICTLY follow all dietary restrictions - this is mandatory
-2. Use as many of the available ingredients as possible
+2. Use ONLY ingredients from the available list
 3. Respect the user's cuisine preferences
-4. Include authentic cooking techniques when relevant (especially for Korean, Moroccan, West African, Caribbean, Panamanian dishes)
-5. Minimize the need for additional ingredients
+4. Include authentic cooking techniques when relevant
+5. If a recipe absolutely needs an ingredient not in the list, add it to "missing_ingredients" array
 
 For each recipe, provide the information in this EXACT JSON format:
 
