@@ -25,9 +25,14 @@ const Dashboard: React.FC = () => {
       setSelectedGenres(profile.food_genres || [])
       setDietaryPreferences(profile.dietary_preferences || '')
       setShowPayment(!profile.has_paid)
+    }
+  }, [profile])
+
+  useEffect(() => {
+    if (profile) {
       setShowRecipeDiscovery(profile.has_paid && uploadedImages.length > 0)
     }
-  }, [profile, uploadedImages, activeTab])
+  }, [profile, uploadedImages])
 
   // Load existing uploaded images when component mounts
   useEffect(() => {
@@ -57,8 +62,15 @@ const Dashboard: React.FC = () => {
     loadExistingImages()
   }, [user])
 
+  const handleGenresChange = (genres: string[]) => {
+    console.log('🔄 Dashboard: handleGenresChange called with:', genres)
+    console.log('🔄 Dashboard: Current selectedGenres before update:', selectedGenres)
+    setSelectedGenres(genres)
+  }
+
   const handleSavePreferences = async () => {
     try {
+      console.log('💾 Saving preferences with genres:', selectedGenres)
       await updateProfile({
         food_genres: selectedGenres,
         dietary_preferences: dietaryPreferences
@@ -165,7 +177,7 @@ const Dashboard: React.FC = () => {
                 <section className="setup-section">
                   <FoodGenreSelector
                     selectedGenres={selectedGenres}
-                    onGenresChange={setSelectedGenres}
+                    onGenresChange={handleGenresChange}
                   />
                 </section>
 

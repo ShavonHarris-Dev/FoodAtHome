@@ -36,10 +36,17 @@ const FoodGenreSelector: React.FC<FoodGenreSelectorProps> = ({
   const [customGenre, setCustomGenre] = useState('')
 
   const toggleGenre = (genre: string) => {
+    console.log('🎯 Toggling genre:', genre)
+    console.log('📝 Current selected genres:', selectedGenres)
+
     if (selectedGenres.includes(genre)) {
-      onGenresChange(selectedGenres.filter(g => g !== genre))
+      const newGenres = selectedGenres.filter(g => g !== genre)
+      console.log('➖ Removing genre, new list:', newGenres)
+      onGenresChange(newGenres)
     } else {
-      onGenresChange([...selectedGenres, genre])
+      const newGenres = [...selectedGenres, genre]
+      console.log('➕ Adding genre, new list:', newGenres)
+      onGenresChange(newGenres)
     }
   }
 

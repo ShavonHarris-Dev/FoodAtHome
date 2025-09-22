@@ -49,7 +49,8 @@ const RecipeDiscovery: React.FC = () => {
         return ingredients
       }
 
-      throw new Error('No ingredients found')
+      console.warn('⚠️ No ingredients detected in images. This might be normal if images don\'t contain visible food items.')
+      return []
 
     } catch (error) {
       console.error('❌ Ingredient analysis failed:', error)
@@ -132,6 +133,13 @@ const RecipeDiscovery: React.FC = () => {
 
       console.log('🍳 Generating recipes for ingredients:', ingredients)
 
+      // If no ingredients, load saved recipes as fallback
+      if (ingredients.length === 0) {
+        console.log('📚 No ingredients detected, loading saved recipes instead')
+        await loadSavedRecipes([])
+        return
+      }
+
       // Call our backend for recipe generation
       const response = await fetch('http://localhost:3001/api/generate-recipes', {
         method: 'POST',
@@ -158,7 +166,12 @@ const RecipeDiscovery: React.FC = () => {
         .filter((recipe: RecipeWithMissing) => recipe.missing_count <= maxMissing)
         .sort((a: RecipeWithMissing, b: RecipeWithMissing) => a.missing_count - b.missing_count)
 
+      console.log('🎯 Recipes after processing:', recipesWithMissing.length)
+      console.log('🎯 Max missing allowed:', maxMissing)
+      console.log('🎯 Recipes with missing counts:', recipesWithMissing.map((r: RecipeWithMissing) => ({ title: r.title, missing: r.missing_count })))
+
       setSuggestedRecipes(recipesWithMissing)
+      console.log('🎯 Set suggested recipes, should trigger re-render')
 
       if (recipesWithMissing.length === 0) {
         await loadSavedRecipes(ingredients)
@@ -248,6 +261,13 @@ const RecipeDiscovery: React.FC = () => {
       </div>
     )
   }
+
+  console.log('🎨 RecipeDiscovery rendering with:', {
+    loading,
+    error,
+    suggestedRecipesCount: suggestedRecipes.length,
+    userIngredientsCount: userIngredients.length
+  })
 
   return (
     <div className="recipe-discovery">

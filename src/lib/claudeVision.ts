@@ -49,7 +49,7 @@ export class ClaudeVisionService {
 
       const requestBody = {
         model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1000,
+        max_tokens: 2000,
         messages: [
           {
             role: "user",
@@ -64,19 +64,72 @@ export class ClaudeVisionService {
               },
               {
                 type: "text",
-                text: `Analyze this kitchen/fridge/pantry photo and list ALL ingredients and food items you can see.
+                text: `You are analyzing a grocery haul photo to identify ALL food items present. Be systematic and thorough - don't just focus on the most prominent items.
 
-Instructions:
-- Look carefully at all visible food items
-- Include fresh produce, packaged goods, condiments, spices
+CRITICAL MINDSET: Your job is to be a THOROUGH DETECTIVE, not a cautious accountant. Find everything possible, even if you're only 70% sure what it is. Better to guess and include an item than to miss it entirely.
+
+GRID SCANNING METHOD (MANDATORY):
+Divide the image into a 3x3 grid and scan each section systematically:
+- TOP LEFT | TOP CENTER | TOP RIGHT
+- MIDDLE LEFT | MIDDLE CENTER | MIDDLE RIGHT
+- BOTTOM LEFT | BOTTOM CENTER | BOTTOM RIGHT
+
+For EACH grid section, perform these 4 scan types:
+1. DEPTH SCAN: Look behind, under, and around other items
+2. COLOR SCAN: Identify items by color patterns (red tomatoes, orange carrots, etc.)
+3. TEXT SCAN: Read all visible text/brands - even partial labels give clues
+4. QUANTITY SCAN: Count multiples of the same item
+
+TARGET: Aim to find AT LEAST 15-25 items total. If you find fewer than 15, scan again more aggressively.
+
+SHAPE RECOGNITION (when labels aren't clear):
+- Cylindrical = cans (soup, beans, tomatoes, etc.)
+- Rectangular boxes = cereals, pasta, crackers, etc.
+- Clear containers = oils, vinegars, sauces
+- Mesh/net bags = onions, potatoes, citrus
+- Plastic wrapped = bread, meat, cheese
+- Small jars = spices, baby food, jams
+
+SPECIFIC THINGS TO LOOK FOR:
+- Background items: Don't ignore items that are partially visible
+- Stacked items: Look for multiples of the same product
+- Different angles: Items might be turned so labels aren't fully visible
+- Generic shapes: Even without reading labels, identify by shape (pasta boxes, soup cans, etc.)
+- Fresh vs. packaged: Distinguish between fresh produce and packaged goods
+
+CRITICAL REMINDER:
+Don't assume - if you see the edge of a can or box, try to identify what it might be based on size, color, or partial text. Many items in grocery hauls are partially obscured but still identifiable.
+
+QUALITY CHECK - After initial scan, ask yourself:
+- Did I examine every visible surface?
+- Are there items I can only partially see that I should note?
+- Did I count multiples correctly?
+- Are there generic items I identified by shape even without clear labels?
+
+INSTRUCTIONS:
 - Use simple, common ingredient names (e.g., "eggs" not "chicken eggs")
-- Include items that are partially visible
-- Don't include kitchen tools or containers
+- Include items that are partially visible or obscured
+- Don't include kitchen tools, containers, or packaging materials
 - Return ONLY a simple comma-separated list
+- Be exhaustive - include everything you can identify
 
-Example format: eggs, milk, tomatoes, onions, cheese, bread, olive oil
+FORMAT YOUR RESPONSE WITH CLEAR FORMATTING:
+- NEVER run words together
+- Each item should be clearly separated by commas
+- Use proper spacing between items
+- Double-check for any merged or combined words
 
-What ingredients do you see?`
+FINAL SCAN REQUIREMENT:
+After creating your initial list, scan the image one more time focusing specifically on:
+- The right side where many canned goods might be stacked
+- Any meat packages in plastic wrapping
+- All bread/grain products
+- Anything in the background or partially obscured
+- Items that might be behind or under other products
+
+Example format: eggs, milk, tomatoes, onions, cheese, bread, olive oil, canned tomatoes, pasta, ground beef, yogurt, apples, bananas, rice, black beans, chicken breast, butter, garlic, bell peppers, carrots, potatoes, orange juice, cereal, frozen peas
+
+What ingredients and food items do you see? List ALL items, including partially visible ones, and ensure proper formatting.`
               }
             ]
           }
