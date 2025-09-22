@@ -17,7 +17,6 @@ const Dashboard: React.FC = () => {
   const [dietaryPreferences, setDietaryPreferences] = useState('')
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [showPayment, setShowPayment] = useState(false)
-  const [showRecipeDiscovery, setShowRecipeDiscovery] = useState(false)
   const [activeTab, setActiveTab] = useState<'setup' | 'recipes' | 'meal-plan'>(() => {
     // Restore active tab from localStorage
     const savedTab = localStorage.getItem('dashboard-active-tab') as 'setup' | 'recipes' | 'meal-plan'
@@ -32,11 +31,6 @@ const Dashboard: React.FC = () => {
     }
   }, [profile])
 
-  useEffect(() => {
-    if (profile) {
-      setShowRecipeDiscovery(profile.has_paid && uploadedImages.length > 0)
-    }
-  }, [profile, uploadedImages])
 
   // Save active tab to localStorage when it changes
   useEffect(() => {
@@ -98,9 +92,6 @@ const Dashboard: React.FC = () => {
 
   const handleImagesUploaded = (imageUrls: string[]) => {
     setUploadedImages(imageUrls)
-    if (profile?.has_paid && imageUrls.length > 0) {
-      setShowRecipeDiscovery(true)
-    }
   }
 
   const handleSignOut = async () => {

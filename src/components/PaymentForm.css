@@ -195,3 +195,39 @@
     font-size: 1.8rem;
   }
 }
+
+/* Card Element Styles */
+.card-element-container {
+  margin: 25px 0;
+  text-align: left;
+}
+
+.card-element-container label {
+  display: block;
+  margin-bottom: 10px;
+  color: #333;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.card-element-container .StripeElement {
+  background-color: white;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  transition: border-color 0.3s ease;
+}
+
+.card-element-container .StripeElement:focus,
+.card-element-container .StripeElement--focus {
+  border-color: #6772e5;
+  box-shadow: 0 0 0 2px rgba(103, 114, 229, 0.2);
+}
+
+.card-element-container .StripeElement--invalid {
+  border-color: #e3342f;
+}
+
+.card-element-container .StripeElement--complete {
+  border-color: #28a745;
+}

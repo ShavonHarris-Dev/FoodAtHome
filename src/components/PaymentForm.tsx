@@ -1,5 +1,12 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import {
+  useStripe,
+  useElements,
+  CardElement,
+  Elements
+} from '@stripe/react-stripe-js'
 import { useProfile } from '../hooks/useProfile'
+import stripePromise from '../lib/stripe'
 import './PaymentForm.css'
 
 interface PaymentFormProps {
@@ -8,37 +15,16 @@ interface PaymentFormProps {
 
 type SubscriptionTier = 'basic' | 'premium'
 
-const PaymentForm: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) => {
+const PaymentFormContent: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) => {
+  const stripe = useStripe()
+  const elements = useElements()
   const { updateProfile } = useProfile()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionTier>('premium')
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
-  const handlePayment = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      // Simulate payment process for now
-      // In a real app, you would integrate with Stripe here
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Update user profile with subscription tier
-      await updateProfile({
-        has_paid: true,
-        subscription_tier: selectedPlan
-      })
-
-      onPaymentSuccess()
-    } catch (err) {
-      setError('Payment failed. Please try again.')
-      console.error('Payment error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const planDetails = {
+  const planDetails = useMemo(() => ({
     basic: {
       price: 4.99,
       features: [
@@ -59,6 +45,74 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) => {
         'Nutrition insights',
         'Advanced recipe filtering'
       ]
+    }
+  }), [])
+
+  useEffect(() => {
+    const createPaymentIntent = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/create-payment-intent', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: planDetails[selectedPlan].price,
+            subscription_tier: selectedPlan
+          })
+        })
+
+        const { client_secret } = await response.json()
+        setClientSecret(client_secret)
+      } catch (err) {
+        console.error('Error creating payment intent:', err)
+        setError('Failed to initialize payment. Please try again.')
+      }
+    }
+
+    createPaymentIntent()
+  }, [selectedPlan, planDetails])
+
+  const handlePayment = async () => {
+    if (!stripe || !elements || !clientSecret) {
+      setError('Payment system not ready. Please try again.')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const cardElement = elements.getElement(CardElement)
+
+      if (!cardElement) {
+        throw new Error('Card element not found')
+      }
+
+      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
+        }
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      if (paymentIntent.status === 'succeeded') {
+        // Update user profile with subscription tier
+        await updateProfile({
+          has_paid: true,
+          subscription_tier: selectedPlan
+        })
+
+        onPaymentSuccess()
+      }
+    } catch (err: any) {
+      setError(err.message || 'Payment failed. Please try again.')
+      console.error('Payment error:', err)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -102,12 +156,30 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) => {
             <span className="price-description">Cancel anytime</span>
           </div>
 
+          <div className="card-element-container">
+            <label htmlFor="card-element">Credit or Debit Card</label>
+            <CardElement
+              id="card-element"
+              options={{
+                style: {
+                  base: {
+                    fontSize: '16px',
+                    color: '#424770',
+                    '::placeholder': {
+                      color: '#aab7c4',
+                    },
+                  },
+                },
+              }}
+            />
+          </div>
+
           {error && <div className="error-message">{error}</div>}
 
           <button
             className="payment-button"
             onClick={handlePayment}
-            disabled={loading}
+            disabled={loading || !stripe || !clientSecret}
           >
             {loading
               ? 'Processing Payment...'
@@ -121,6 +193,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) => {
         </div>
       </div>
     </div>
+  )
+}
+
+const PaymentForm: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) => {
+  return (
+    <Elements stripe={stripePromise}>
+      <PaymentFormContent onPaymentSuccess={onPaymentSuccess} />
+    </Elements>
   )
 }
 

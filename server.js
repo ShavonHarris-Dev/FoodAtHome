@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 require('dotenv').config();
 
 const app = express();
@@ -155,7 +156,85 @@ function deduplicateIngredients(ingredients) {
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ status: 'Backend server running', endpoints: ['/api/analyze-ingredients', '/api/generate-recipes'] });
+  res.json({
+    status: 'Backend server running',
+    endpoints: ['/api/analyze-ingredients', '/api/generate-recipes', '/api/create-payment-intent', '/api/create-subscription']
+  });
+});
+
+// Stripe payment intent endpoint
+app.post('/api/create-payment-intent', async (req, res) => {
+  try {
+    const { amount, currency = 'usd', subscription_tier } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency,
+      metadata: {
+        subscription_tier: subscription_tier || 'basic'
+      }
+    });
+
+    res.json({
+      client_secret: paymentIntent.client_secret
+    });
+
+  } catch (error) {
+    console.error('Error creating payment intent:', error);
+    res.status(500).json({ error: 'Failed to create payment intent' });
+  }
+});
+
+// Stripe subscription endpoint (for recurring payments)
+app.post('/api/create-subscription', async (req, res) => {
+  try {
+    const { price_id, customer_email, subscription_tier } = req.body;
+
+    if (!price_id || !customer_email) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Create or retrieve customer
+    let customer;
+    const existingCustomers = await stripe.customers.list({
+      email: customer_email,
+      limit: 1
+    });
+
+    if (existingCustomers.data.length > 0) {
+      customer = existingCustomers.data[0];
+    } else {
+      customer = await stripe.customers.create({
+        email: customer_email,
+        metadata: {
+          subscription_tier: subscription_tier || 'basic'
+        }
+      });
+    }
+
+    // Create subscription
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: price_id }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { save_default_payment_method: 'on_subscription' },
+      expand: ['latest_invoice.payment_intent'],
+    });
+
+    res.json({
+      subscription_id: subscription.id,
+      client_secret: subscription.latest_invoice.payment_intent.client_secret,
+      customer_id: customer.id
+    });
+
+  } catch (error) {
+    console.error('Error creating subscription:', error);
+    res.status(500).json({ error: 'Failed to create subscription' });
+  }
 });
 
 // Claude Vision API endpoint

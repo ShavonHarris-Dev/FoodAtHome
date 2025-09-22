@@ -1,0 +1,10 @@
+[build]
+  publish = "build"
+  command = "npm run build"
+
+# Environment variables should be set in Netlify dashboard for security
+# Go to Site settings → Environment variables to add:
+# - REACT_APP_STRIPE_PUBLISHABLE_KEY
+# - REACT_APP_SPOONACULAR_API_KEY
+# - REACT_APP_CLAUDE_API_KEY
+# - STRIPE_SECRET_KEY

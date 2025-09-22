@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useProfile } from '../hooks/useProfile'
 import { supabase } from '../lib/supabase'
-import { ClaudeRecipeService, GeneratedRecipe, UserPreferences } from '../lib/claudeRecipeGeneration'
+import { GeneratedRecipe, UserPreferences } from '../lib/claudeRecipeGeneration'
 import { SavedRecipesService } from '../lib/savedRecipesService'
 import { ClaudeVisionService } from '../lib/claudeVision'
 import { UsageTrackingService, UsageLimits } from '../lib/usageTracking'
@@ -419,6 +419,7 @@ const RecipeDiscovery: React.FC = () => {
     }
 
     loadUserIngredientsAndRecipes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]) // Removed userIngredients and suggestedRecipes from deps to prevent infinite loops
 
   if (loading) {
