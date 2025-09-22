@@ -6,11 +6,16 @@ interface ClaudeVisionResponse {
   }>
 }
 
+interface IngredientWithConfidence {
+  ingredient: string
+  confidence: number
+}
+
 export class ClaudeVisionService {
   private static readonly CLAUDE_API_KEY = process.env.REACT_APP_CLAUDE_API_KEY
   private static readonly CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
 
-  static async analyzeIngredients(imageUrls: string[]): Promise<string[]> {
+  static async analyzeIngredients(imageUrls: string[], confidenceThreshold: number = 0.8): Promise<string[]> {
     console.log('DEBUG: Claude API Key exists?', !!this.CLAUDE_API_KEY)
     console.log('DEBUG: All env vars:', {
       claudeKey: this.CLAUDE_API_KEY?.substring(0, 10) + '...',
@@ -23,16 +28,34 @@ export class ClaudeVisionService {
     }
 
     try {
-      const allIngredients = new Set<string>()
+      const allIngredients = new Map<string, number>() // ingredient -> highest confidence
 
       // Process images in batches to avoid overwhelming the API
       for (const imageUrl of imageUrls.slice(0, 5)) { // Limit to 5 images per analysis
-        const ingredients = await this.analyzeImage(imageUrl)
-        ingredients.forEach(ingredient => allIngredients.add(ingredient))
+        const ingredientsWithConfidence = await this.analyzeImage(imageUrl)
+
+        // Keep highest confidence for each ingredient
+        ingredientsWithConfidence.forEach(({ ingredient, confidence }) => {
+          const currentConfidence = allIngredients.get(ingredient) || 0
+          if (confidence > currentConfidence) {
+            allIngredients.set(ingredient, confidence)
+          }
+        })
       }
 
-      const result = Array.from(allIngredients)
-      console.log('Claude Vision detected ingredients:', result)
+      // Filter by confidence threshold and return only ingredient names
+      const result = Array.from(allIngredients.entries())
+        .filter(([, confidence]) => confidence >= confidenceThreshold)
+        .map(([ingredient]) => ingredient)
+        .sort()
+
+      console.log('Claude Vision detected ingredients with confidence filtering:', {
+        threshold: confidenceThreshold,
+        totalDetected: allIngredients.size,
+        passedThreshold: result.length,
+        result
+      })
+
       return result
 
     } catch (error) {
@@ -41,7 +64,7 @@ export class ClaudeVisionService {
     }
   }
 
-  private static async analyzeImage(imageUrl: string): Promise<string[]> {
+  private static async analyzeImage(imageUrl: string): Promise<IngredientWithConfidence[]> {
     try {
       // Convert image to base64
       const base64Image = await this.urlToBase64(imageUrl)
@@ -64,72 +87,40 @@ export class ClaudeVisionService {
               },
               {
                 type: "text",
-                text: `You are analyzing a grocery haul photo to identify ALL food items present. Be systematic and thorough - don't just focus on the most prominent items.
+                text: `You are analyzing a grocery haul photo to identify food items with confidence scores. Be accurate rather than exhaustive.
 
-CRITICAL MINDSET: Your job is to be a THOROUGH DETECTIVE, not a cautious accountant. Find everything possible, even if you're only 70% sure what it is. Better to guess and include an item than to miss it entirely.
+SCANNING APPROACH:
+Systematically scan the image for clearly identifiable food items. Focus on items you can confidently identify rather than guessing.
 
-GRID SCANNING METHOD (MANDATORY):
-Divide the image into a 3x3 grid and scan each section systematically:
-- TOP LEFT | TOP CENTER | TOP RIGHT
-- MIDDLE LEFT | MIDDLE CENTER | MIDDLE RIGHT
-- BOTTOM LEFT | BOTTOM CENTER | BOTTOM RIGHT
+CONFIDENCE SCORING (0.0 to 1.0):
+- 0.9-1.0: Clearly visible, labeled, or unmistakable (e.g., labeled Chobani yogurt, whole eggs, clear tomatoes)
+- 0.7-0.8: Very likely but not 100% certain (e.g., red peppers that could be bell peppers vs hot peppers)
+- 0.5-0.6: Possible but uncertain (e.g., partial labels, items mostly obscured)
+- Below 0.5: Don't include these items
 
-For EACH grid section, perform these 4 scan types:
-1. DEPTH SCAN: Look behind, under, and around other items
-2. COLOR SCAN: Identify items by color patterns (red tomatoes, orange carrots, etc.)
-3. TEXT SCAN: Read all visible text/brands - even partial labels give clues
-4. QUANTITY SCAN: Count multiples of the same item
+WHAT TO IDENTIFY:
+- Fresh produce: fruits, vegetables (be specific: "tomatoes" not "vegetables")
+- Packaged goods with visible labels
+- Dairy products (milk, cheese, yogurt)
+- Proteins (eggs, meat, fish)
+- Pantry items (oils, sauces, condiments)
+- Beverages
 
-TARGET: Aim to find AT LEAST 15-25 items total. If you find fewer than 15, scan again more aggressively.
+WHAT TO AVOID:
+- Generic categories ("spices", "grains") unless you can see specific items
+- Kitchen tools, containers, bags
+- Items that are completely obscured
+- Wild guesses based on shapes alone
 
-SHAPE RECOGNITION (when labels aren't clear):
-- Cylindrical = cans (soup, beans, tomatoes, etc.)
-- Rectangular boxes = cereals, pasta, crackers, etc.
-- Clear containers = oils, vinegars, sauces
-- Mesh/net bags = onions, potatoes, citrus
-- Plastic wrapped = bread, meat, cheese
-- Small jars = spices, baby food, jams
+RESPONSE FORMAT:
+Return ONLY a valid JSON array with this exact structure:
+[
+  {"ingredient": "tomatoes", "confidence": 0.95},
+  {"ingredient": "eggs", "confidence": 0.98},
+  {"ingredient": "avocados", "confidence": 0.92}
+]
 
-SPECIFIC THINGS TO LOOK FOR:
-- Background items: Don't ignore items that are partially visible
-- Stacked items: Look for multiples of the same product
-- Different angles: Items might be turned so labels aren't fully visible
-- Generic shapes: Even without reading labels, identify by shape (pasta boxes, soup cans, etc.)
-- Fresh vs. packaged: Distinguish between fresh produce and packaged goods
-
-CRITICAL REMINDER:
-Don't assume - if you see the edge of a can or box, try to identify what it might be based on size, color, or partial text. Many items in grocery hauls are partially obscured but still identifiable.
-
-QUALITY CHECK - After initial scan, ask yourself:
-- Did I examine every visible surface?
-- Are there items I can only partially see that I should note?
-- Did I count multiples correctly?
-- Are there generic items I identified by shape even without clear labels?
-
-INSTRUCTIONS:
-- Use simple, common ingredient names (e.g., "eggs" not "chicken eggs")
-- Include items that are partially visible or obscured
-- Don't include kitchen tools, containers, or packaging materials
-- Return ONLY a simple comma-separated list
-- Be exhaustive - include everything you can identify
-
-FORMAT YOUR RESPONSE WITH CLEAR FORMATTING:
-- NEVER run words together
-- Each item should be clearly separated by commas
-- Use proper spacing between items
-- Double-check for any merged or combined words
-
-FINAL SCAN REQUIREMENT:
-After creating your initial list, scan the image one more time focusing specifically on:
-- The right side where many canned goods might be stacked
-- Any meat packages in plastic wrapping
-- All bread/grain products
-- Anything in the background or partially obscured
-- Items that might be behind or under other products
-
-Example format: eggs, milk, tomatoes, onions, cheese, bread, olive oil, canned tomatoes, pasta, ground beef, yogurt, apples, bananas, rice, black beans, chicken breast, butter, garlic, bell peppers, carrots, potatoes, orange juice, cereal, frozen peas
-
-What ingredients and food items do you see? List ALL items, including partially visible ones, and ensure proper formatting.`
+Use simple, common ingredient names. Be conservative with confidence scores - it's better to exclude uncertain items than include false positives.`
               }
             ]
           }
@@ -200,7 +191,7 @@ What ingredients and food items do you see? List ALL items, including partially 
     }
   }
 
-  private static parseClaudeResponse(data: ClaudeVisionResponse): string[] {
+  private static parseClaudeResponse(data: ClaudeVisionResponse): IngredientWithConfidence[] {
     try {
       const textContent = data.content
         .filter(item => item.type === 'text')
@@ -212,7 +203,25 @@ What ingredients and food items do you see? List ALL items, including partially 
         return []
       }
 
-      // Parse the comma-separated list
+      // Try to parse as JSON first
+      try {
+        const jsonMatch = textContent.match(/\[[\s\S]*\]/)
+        if (jsonMatch) {
+          const jsonArray = JSON.parse(jsonMatch[0])
+
+          return jsonArray
+            .filter((item: any) => item.ingredient && typeof item.confidence === 'number')
+            .map((item: any) => ({
+              ingredient: this.normalizeIngredient(item.ingredient.toLowerCase().trim()),
+              confidence: Math.max(0, Math.min(1, item.confidence)) // Clamp between 0-1
+            }))
+            .filter((item: IngredientWithConfidence) => this.isValidIngredient(item.ingredient))
+        }
+      } catch (jsonError) {
+        console.warn('Failed to parse JSON response, falling back to text parsing')
+      }
+
+      // Fallback to old comma-separated parsing
       const ingredients = textContent
         .toLowerCase()
         .split(',')
@@ -221,6 +230,7 @@ What ingredients and food items do you see? List ALL items, including partially 
         .filter(item => this.isValidIngredient(item))
         .map(item => this.normalizeIngredient(item))
         .filter((item, index, arr) => arr.indexOf(item) === index) // Remove duplicates
+        .map(ingredient => ({ ingredient, confidence: 0.7 })) // Default confidence
 
       return ingredients
 

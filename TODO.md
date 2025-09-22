@@ -3,10 +3,10 @@
 ## 🚀 Priority Tasks (Core Functionality)
 
 ### 1. Image Analysis & Ingredient Detection
-- [ ] **Implement AI-powered image analysis** - Replace mock `analyzeIngredients()` function with real AI service
-  - Options: Google Vision API, AWS Rekognition, or Claude Vision API
-  - Should detect ingredients from fridge/pantry photos
-  - Return accurate ingredient list for recipe matching
+- [x] **Implement AI-powered image analysis** - Replace mock `analyzeIngredients()` function with real AI service
+  - ✅ Claude Vision API implemented
+  - ✅ Detects ingredients from fridge/pantry photos
+  - ✅ Returns accurate ingredient list for recipe matching
 
 ### 2. Recipe Detail View
 - [ ] **Create full recipe view modal/page** - Currently recipes only show cards
@@ -17,8 +17,8 @@
   - Save/favorite functionality
 
 ### 3. Authentication & Profile System
-- [ ] **Fix Google OAuth setup** - Currently configured but needs testing
-- [ ] **Complete profile onboarding flow** - Ensure setup preferences save correctly
+- [x] **Fix Google OAuth setup** - Currently configured but needs testing
+- [x] **Complete profile onboarding flow** - Ensure setup preferences save correctly
 - [ ] **Add profile management page** - Allow users to update preferences later
 
 ### 4. Payment & Subscription System
@@ -42,7 +42,7 @@
 ### 7. Mobile Optimization
 - [ ] **Improve mobile camera integration** - Better photo capture experience
 - [ ] **Optimize image upload flow** - Reduce file sizes, better compression
-- [ ] **Test HEIC conversion on actual iPhones** - Verify the conversion works properly
+- [x] **Test HEIC conversion on actual iPhones** - Verify the conversion works properly
 
 ## 🎯 User Experience Improvements
 
@@ -60,6 +60,15 @@
 - [ ] **Optimize image processing** - Faster upload and analysis
 - [ ] **Implement recipe caching** - Store frequently accessed recipes locally
 - [ ] **Add search functionality** - Search within user's recipe history
+
+#### AI Cost Optimization (Priority)
+- [ ] **Vision output compression** - Compress vision output to minimal JSON format (ingredients array + confidence scores)
+- [ ] **Recipe length caps** - Add hard limits (5 steps max, 50 words per step) to control output tokens
+- [ ] **Two-tier model architecture** - Use Haiku/4o-mini for vision, larger models only for recipe generation
+- [ ] **Caching layer with hashing** - Hash ingredient sets + preferences to reuse recipes and reduce API calls
+- [ ] **Ingredient normalization** - Merge duplicates ("scallion" + "green onion" → "green onion") before generation
+- [ ] **Output length limits** - Implement strict prompt constraints for bounded recipe generation
+- [ ] **PEFT/LoRA research** - Plan fine-tuning small model on recipe format instead of full fine-tune
 
 ## 🔒 Security & Production Readiness
 
@@ -124,6 +133,22 @@
 - [ ] **Add dark mode support** - Popular user request
 - [ ] **Create loading animations** - Better perceived performance
 
+## 🚀 MVP Launch Ready
+
+**Core functionality working:**
+- ✅ Photo upload with HEIC conversion
+- ✅ AI ingredient detection (Claude Vision)
+- ✅ Recipe generation with dietary preferences
+- ✅ User authentication (Google OAuth)
+- ✅ Subscription tiers (Basic/Premium)
+- ✅ Adaptive recipe filtering (0-2 ingredients max)
+- ✅ Mobile-responsive design
+
+**MVP Launch Blockers (Priority 1):**
+- [ ] **Recipe detail modal** - Users can't see full recipes
+- [ ] **Stripe production setup** - Can't process real payments
+- [ ] **Production deployment** - Not accessible to users
+
 ## 📊 Current Status
 
 ✅ **Completed:**
@@ -134,13 +159,17 @@
 - Adaptive recipe filtering (0-2 ingredient max)
 - Basic meal planning interface
 - Image upload with drag & drop
+- Claude Vision API integration for ingredient detection
+- Google OAuth authentication
+- Profile onboarding flow with preferences
 
 🟡 **In Progress:**
 - Testing preferences with API credits restored
 
-❌ **Blocked:**
-- Real ingredient recognition (needs AI service selection)
-- Production deployment (needs Stripe setup)
+❌ **MVP Blockers:**
+- Recipe detail view (users can't see instructions)
+- Stripe production setup (can't charge users)
+- Deployment configuration
 
 ## 🏆 Success Metrics
 

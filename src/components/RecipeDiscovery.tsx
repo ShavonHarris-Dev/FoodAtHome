@@ -15,13 +15,23 @@ interface RecipeWithMissing extends GeneratedRecipe {
 const RecipeDiscovery: React.FC = () => {
   const { user } = useAuth()
   const { profile } = useProfile()
-  const [userIngredients, setUserIngredients] = useState<string[]>([])
-  const [suggestedRecipes, setSuggestedRecipes] = useState<RecipeWithMissing[]>([])
+  const [userIngredients, setUserIngredients] = useState<string[]>(() => {
+    // Restore ingredients from localStorage if available
+    const savedIngredients = localStorage.getItem('user-ingredients')
+    return savedIngredients ? JSON.parse(savedIngredients) : []
+  })
+  const [suggestedRecipes, setSuggestedRecipes] = useState<RecipeWithMissing[]>(() => {
+    // Restore recipes from localStorage if available
+    const savedRecipes = localStorage.getItem('suggested-recipes')
+    return savedRecipes ? JSON.parse(savedRecipes) : []
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingRecipe, setSavingRecipe] = useState<string | null>(null)
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeWithMissing | null>(null)
   const [showFullRecipe, setShowFullRecipe] = useState(false)
+  const [isEditingIngredients, setIsEditingIngredients] = useState(false)
+  const [editableIngredients, setEditableIngredients] = useState<string>('')
 
   const analyzeIngredients = async (imageUrls: string[]): Promise<string[]> => {
     try {
@@ -110,6 +120,38 @@ const RecipeDiscovery: React.FC = () => {
   const closeFullRecipe = () => {
     setShowFullRecipe(false)
     setSelectedRecipe(null)
+  }
+
+  const startEditingIngredients = () => {
+    setEditableIngredients(userIngredients.join(', '))
+    setIsEditingIngredients(true)
+  }
+
+  const saveEditedIngredients = async () => {
+    const newIngredients = editableIngredients
+      .split(',')
+      .map(item => item.trim().toLowerCase())
+      .filter(item => item.length > 0)
+      .filter((item, index, arr) => arr.indexOf(item) === index) // Remove duplicates
+
+    setUserIngredients(newIngredients)
+    setIsEditingIngredients(false)
+
+    // Regenerate recipes with updated ingredients
+    setLoading(true)
+    try {
+      await generateRecipes(newIngredients)
+    } catch (error) {
+      console.error('Failed to regenerate recipes:', error)
+      setError('Failed to generate recipes with updated ingredients')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const cancelEditingIngredients = () => {
+    setIsEditingIngredients(false)
+    setEditableIngredients('')
   }
 
   const getUserPreferences = (): UserPreferences => {
@@ -208,9 +250,25 @@ const RecipeDiscovery: React.FC = () => {
     }
   }
 
+  // Save ingredients to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('user-ingredients', JSON.stringify(userIngredients))
+  }, [userIngredients])
+
+  // Save recipes to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('suggested-recipes', JSON.stringify(suggestedRecipes))
+  }, [suggestedRecipes])
+
   useEffect(() => {
     const loadUserIngredientsAndRecipes = async () => {
       if (!user || !supabase) return
+
+      // If we already have cached ingredients and recipes, just stop loading
+      if (userIngredients.length > 0 && suggestedRecipes.length > 0) {
+        setLoading(false)
+        return
+      }
 
       try {
         // Get user's uploaded images
@@ -221,12 +279,19 @@ const RecipeDiscovery: React.FC = () => {
 
         if (images && images.length > 0) {
           const imageUrls = images.map(img => img.image_url)
-          const ingredients = await analyzeIngredients(imageUrls)
-          setUserIngredients(ingredients)
 
-          // Generate recipes with Claude AI
-          await generateRecipes(ingredients)
-        } else {
+          // Only analyze if we don't have cached ingredients
+          if (userIngredients.length === 0) {
+            const ingredients = await analyzeIngredients(imageUrls)
+            setUserIngredients(ingredients)
+
+            // Generate recipes with Claude AI
+            await generateRecipes(ingredients)
+          } else if (suggestedRecipes.length === 0) {
+            // We have ingredients but no recipes, generate recipes
+            await generateRecipes(userIngredients)
+          }
+        } else if (userIngredients.length === 0) {
           setError('Please upload some ingredient photos first')
         }
       } catch (err) {
@@ -234,16 +299,18 @@ const RecipeDiscovery: React.FC = () => {
         setError('Failed to load recipe suggestions. Using saved recipes.')
 
         // Fallback to saved recipes if generation fails
-        const ingredients = await analyzeIngredients([])
-        setUserIngredients(ingredients)
-        await loadSavedRecipes(ingredients)
+        if (userIngredients.length === 0) {
+          const ingredients = await analyzeIngredients([])
+          setUserIngredients(ingredients)
+        }
+        await loadSavedRecipes(userIngredients)
       } finally {
         setLoading(false)
       }
     }
 
     loadUserIngredientsAndRecipes()
-  }, [user])
+  }, [user]) // Removed userIngredients and suggestedRecipes from deps to prevent infinite loops
 
   if (loading) {
     return (
@@ -277,14 +344,55 @@ const RecipeDiscovery: React.FC = () => {
       </div>
 
       <div className="ingredients-summary">
-        <h3>Your Available Ingredients</h3>
-        <div className="ingredient-tags">
-          {userIngredients.map((ingredient, index) => (
-            <span key={index} className="ingredient-tag">
-              {ingredient}
-            </span>
-          ))}
+        <div className="ingredients-header">
+          <h3>Your Available Ingredients</h3>
+          {!isEditingIngredients && (
+            <button
+              className="edit-ingredients-btn"
+              onClick={startEditingIngredients}
+              title="Edit or add ingredients manually"
+            >
+              ✏️ Edit
+            </button>
+          )}
         </div>
+
+        {isEditingIngredients ? (
+          <div className="ingredient-editor">
+            <textarea
+              value={editableIngredients}
+              onChange={(e) => setEditableIngredients(e.target.value)}
+              placeholder="Add ingredients separated by commas (e.g., tomatoes, eggs, cheese, onions)"
+              className="ingredient-textarea"
+              rows={4}
+            />
+            <div className="editor-buttons">
+              <button className="save-btn" onClick={saveEditedIngredients}>
+                ✅ Save & Generate Recipes
+              </button>
+              <button className="cancel-btn" onClick={cancelEditingIngredients}>
+                ❌ Cancel
+              </button>
+            </div>
+            <p className="editor-help">
+              💡 Tip: Add ingredients that Claude missed or remove incorrect ones
+            </p>
+          </div>
+        ) : (
+          <div className="ingredient-tags">
+            {userIngredients.length > 0 ? (
+              userIngredients.map((ingredient, index) => (
+                <span key={index} className="ingredient-tag">
+                  {ingredient}
+                </span>
+              ))
+            ) : (
+              <p className="no-ingredients">
+                No ingredients detected yet. Upload photos or manually add ingredients above.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {(profile?.dietary_preferences || (profile?.food_genres && profile?.food_genres.length > 0)) && (
