@@ -41,15 +41,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
 
-      if (accessToken) {
-        console.log('OAuth callback detected, processing tokens...')
+      if (accessToken && refreshToken) {
+        console.log('OAuth callback detected, setting session...')
         try {
-          const { data, error } = await supabase.auth.getUser(accessToken)
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
           if (error) throw error
-          console.log('OAuth user data:', data)
+          console.log('Session set successfully:', data)
         } catch (error) {
-          console.error('Error processing OAuth callback:', error)
+          console.error('Error setting session:', error)
         }
         // Clean the URL
         window.history.replaceState({}, document.title, window.location.pathname)
