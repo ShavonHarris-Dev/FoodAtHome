@@ -31,34 +31,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     if (!supabase) {
-      console.log('Supabase client not available')
       setLoading(false)
       return
     }
 
-    console.log('Setting up auth listener...')
-
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        if (error) {
-          console.error('Error getting initial session:', error)
-        } else {
-          console.log('Initial session:', session)
-          setSession(session)
-          setUser(session?.user ?? null)
-        }
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('Initial session check:', session)
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
       } catch (error) {
-        console.error('Exception getting initial session:', error)
-      } finally {
+        console.error('Error getting session:', error)
         setLoading(false)
       }
     }
 
+    getInitialSession()
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state change:', event, session)
         setSession(session)
         setUser(session?.user ?? null)
@@ -66,35 +61,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     )
 
-    getInitialSession()
-
-    return () => {
-      console.log('Cleaning up auth listener')
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
   const signInWithGoogle = async () => {
     if (!supabase) {
-      alert('Supabase is not configured')
+      alert('Supabase is not configured yet. Please add your Supabase credentials to the .env file.')
       return
     }
 
-    try {
-      console.log('Initiating Google sign in...')
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`
-        }
-      })
-
-      if (error) {
-        console.error('Google sign in error:', error)
-        throw error
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`
       }
-    } catch (error) {
-      console.error('Exception during Google sign in:', error)
+    })
+    if (error) {
+      console.error('Error signing in with Google:', error.message)
       throw error
     }
   }
@@ -102,14 +85,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     if (!supabase) return
 
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        console.error('Error signing out:', error)
-        throw error
-      }
-    } catch (error) {
-      console.error('Exception during sign out:', error)
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      console.error('Error signing out:', error.message)
       throw error
     }
   }
