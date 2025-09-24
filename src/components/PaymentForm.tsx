@@ -51,7 +51,8 @@ const PaymentFormContent: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) =>
   useEffect(() => {
     const createPaymentIntent = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/create-payment-intent', {
+        const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001'
+        const response = await fetch(`${baseUrl}/api/create-payment-intent`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

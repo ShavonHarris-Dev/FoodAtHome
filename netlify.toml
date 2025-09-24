@@ -2,9 +2,22 @@
   publish = "build"
   command = "npm run build"
 
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[build.environment]
+  NODE_VERSION = "18"
+
 # Environment variables should be set in Netlify dashboard for security
 # Go to Site settings → Environment variables to add:
 # - REACT_APP_STRIPE_PUBLISHABLE_KEY
 # - REACT_APP_SPOONACULAR_API_KEY
 # - REACT_APP_CLAUDE_API_KEY
 # - STRIPE_SECRET_KEY
+# - REACT_APP_SUPABASE_URL
+# - REACT_APP_SUPABASE_ANON_KEY

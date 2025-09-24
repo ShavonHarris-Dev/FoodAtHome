@@ -266,7 +266,8 @@ const RecipeDiscovery: React.FC = () => {
       const recipeCount = usageLimits?.recipesPerGeneration || 3
 
       // Call our backend for recipe generation
-      const response = await fetch('http://localhost:3001/api/generate-recipes', {
+      const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001'
+      const response = await fetch(`${baseUrl}/api/generate-recipes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

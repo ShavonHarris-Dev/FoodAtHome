@@ -14,7 +14,9 @@ interface IngredientWithConfidence {
 export class ClaudeVisionService {
   private static readonly CLAUDE_API_KEY = process.env.REACT_APP_CLAUDE_API_KEY
   private static readonly CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
-  private static readonly BACKEND_URL = 'http://localhost:3001'
+  private static readonly BACKEND_URL = process.env.NODE_ENV === 'production'
+    ? '' // Use relative URL in production (Netlify)
+    : 'http://localhost:3001'
 
   static async analyzeIngredients(imageUrls: string[], confidenceThreshold: number = 0.8, userPreferences?: any): Promise<string[]> {
     console.log('🔍 Starting ingredient analysis via backend with image URLs:', imageUrls)
