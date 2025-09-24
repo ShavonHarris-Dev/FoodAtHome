@@ -36,7 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return
     }
 
-    console.log('Setting up auth listener...')
+    console.log('Setting up auth listener... v2')
 
     // Get initial session
     const getInitialSession = async () => {
