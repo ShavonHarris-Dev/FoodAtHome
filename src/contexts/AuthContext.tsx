@@ -29,54 +29,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  console.log('Supabase config check:', {
-    url: process.env.REACT_APP_SUPABASE_URL,
-    keyPrefix: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 20) + '...',
-    supabaseExists: !!supabase
-  })
-
   useEffect(() => {
     if (!supabase) {
       setLoading(false)
       return
     }
 
-    // Check if this is an OAuth callback
-    const handleOAuthCallback = async () => {
-      if (!supabase) return
-
-      const hashParams = new URLSearchParams(window.location.hash.substring(1))
-      const accessToken = hashParams.get('access_token')
-      const refreshToken = hashParams.get('refresh_token')
-
-      if (accessToken && refreshToken) {
-        console.log('OAuth callback detected, setting session...')
-        try {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          })
-          if (error) throw error
-          console.log('Session set successfully:', data)
-        } catch (error) {
-          console.error('Error setting session:', error)
-        }
-        // Clean the URL
-        window.history.replaceState({}, document.title, window.location.pathname)
-      }
-    }
-
     // Get initial session
     const getInitialSession = async () => {
-      if (!supabase) {
-        setLoading(false)
-        return
-      }
-
       try {
-        // First handle OAuth callback if present
-        await handleOAuthCallback()
-
         const { data: { session } } = await supabase.auth.getSession()
         console.log('Initial session check:', session)
         setSession(session)
