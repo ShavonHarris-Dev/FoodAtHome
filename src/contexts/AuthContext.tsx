@@ -29,6 +29,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
+  console.log('Supabase config check:', {
+    url: process.env.REACT_APP_SUPABASE_URL,
+    keyPrefix: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 20) + '...',
+    supabaseExists: !!supabase
+  })
+
   useEffect(() => {
     if (!supabase) {
       setLoading(false)
