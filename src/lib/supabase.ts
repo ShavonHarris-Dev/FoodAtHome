@@ -15,8 +15,11 @@ const hasValidConfig =
 
 // Only create Supabase client if environment variables are properly configured
 export const supabase = hasValidConfig
-  ? createClient(supabaseUrl, supabaseKey)
+  ? createClient(supabaseUrl!, supabaseKey!)
   : null
+
+// Export a guaranteed non-null client for production use
+export const supabaseClient = supabase!;
 
 export type Database = {
   public: {

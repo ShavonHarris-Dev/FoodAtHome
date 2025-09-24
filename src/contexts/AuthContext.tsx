@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseClient } from '../lib/supabase'
 
 interface AuthContextType {
   user: User | null
@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
+        const { data: { session }, error } = await supabaseClient.auth.getSession()
         if (error) {
           console.error('Error getting initial session:', error)
         } else {
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state change:', event, session)
         setSession(session)
@@ -87,7 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       console.log('Initiating Google sign in...')
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`
@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!supabase) return
 
     try {
-      const { error } = await supabase.auth.signOut()
+      const { error } = await supabaseClient.auth.signOut()
       if (error) {
         console.error('Error signing out:', error)
         throw error
