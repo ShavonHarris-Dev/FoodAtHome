@@ -58,6 +58,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Get initial session
     const getInitialSession = async () => {
+      if (!supabase) {
+        setLoading(false)
+        return
+      }
+
       try {
         // First handle OAuth callback if present
         await handleOAuthCallback()
