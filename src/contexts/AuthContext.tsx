@@ -44,6 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       try {
         const { data: { session } } = await supabase.auth.getSession()
+        console.log('Initial session check:', session)
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
@@ -57,7 +58,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_, session) => {
+      async (event, session) => {
+        console.log('Auth state change:', event, session)
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
