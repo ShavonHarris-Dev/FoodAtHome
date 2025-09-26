@@ -54,7 +54,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       REACT_APP_SUPABASE_ANON_KEY: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 50) + '...'
     })
 
-    // Get initial session with delay for OAuth processing
+    // Manual OAuth handling with same client instance
+    const handleOAuthCallback = async () => {
+      if (!window.location.hash.includes('access_token')) return false
+
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+
+      if (accessToken && refreshToken) {
+        console.log('📱 OAuth tokens found, manually establishing session...')
+        try {
+          // Use the SAME client instance that's already initialized
+          const { data, error } = await supabase!.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+
+          if (error) {
+            console.error('❌ Error setting session:', error)
+            // Try one more time with refreshed client
+            console.log('🔄 Retrying with auth refresh...')
+            const { error: refreshError } = await supabase!.auth.refreshSession()
+            if (refreshError) {
+              console.error('❌ Refresh also failed:', refreshError)
+              return false
+            }
+          } else {
+            console.log('✅ Session established:', data)
+            // Don't set state here - let the auth listener handle it
+            window.history.replaceState({}, document.title, window.location.pathname)
+            return true
+          }
+        } catch (error) {
+          console.error('❌ Exception in OAuth handling:', error)
+        }
+      }
+      return false
+    }
+
+    // Get initial session
     const getInitialSession = async () => {
       if (!supabase) {
         setLoading(false)
@@ -62,28 +101,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       try {
-        // If OAuth callback is present, wait a moment for Supabase to process it
-        if (window.location.hash.includes('access_token')) {
-          console.log('🔍 OAuth callback detected, waiting for Supabase to process...')
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        }
+        // Handle OAuth callback first
+        const oauthHandled = await handleOAuthCallback()
 
-        console.log('🔍 Getting initial session...')
-        const { data: { session }, error } = await supabase!.auth.getSession()
+        if (!oauthHandled) {
+          // No OAuth, just get existing session
+          console.log('🔍 Getting existing session...')
+          const { data: { session }, error } = await supabase!.auth.getSession()
 
-        if (error) {
-          console.error('❌ Error getting initial session:', error)
-        } else {
-          console.log('✅ Initial session retrieved:', session)
-          setSession(session)
-          setUser(session?.user ?? null)
-
-          // Clean OAuth URL after successful session retrieval
-          if (session && window.location.hash.includes('access_token')) {
-            console.log('🧹 Cleaning OAuth URL...')
-            window.history.replaceState({}, document.title, window.location.pathname)
+          if (error) {
+            console.error('❌ Error getting session:', error)
+          } else {
+            console.log('✅ Session:', session)
+            setSession(session)
+            setUser(session?.user ?? null)
           }
         }
+        // If OAuth was handled, the auth listener will update state
       } catch (error) {
         console.error('❌ Exception getting initial session:', error)
       } finally {
