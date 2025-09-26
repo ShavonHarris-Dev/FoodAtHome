@@ -4,7 +4,7 @@ import './HomePage.css'
 
 const HomePage: React.FC = () => {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, loading } = useAuth()
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
