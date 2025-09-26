@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       try {
         // First try to handle OAuth callback
-        const handledCallback = await handleOAuthCallback()
+        await handleOAuthCallback()
 
         // Then get session (which should now exist if callback was handled)
         const { data: { session }, error } = await supabase!.auth.getSession()
