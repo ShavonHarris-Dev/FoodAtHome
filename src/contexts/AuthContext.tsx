@@ -65,6 +65,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (accessToken && refreshToken) {
         console.log('📱 OAuth tokens found, manually establishing session...')
         try {
+          // Debug: Check the actual tokens being used
+          console.log('🔍 Access token preview:', accessToken?.substring(0, 50) + '...')
+          console.log('🔍 Refresh token preview:', refreshToken?.substring(0, 20) + '...')
+          console.log('🔍 Client config:', {
+            url: supabase!.supabaseUrl,
+            key: supabase!.supabaseKey?.substring(0, 20) + '...'
+          })
+
           // Use the SAME client instance that's already initialized
           const { data, error } = await supabase!.auth.setSession({
             access_token: accessToken,
