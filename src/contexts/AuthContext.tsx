@@ -38,6 +38,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     console.log('Setting up auth listener... FRESH BUILD')
+    console.log('URL hash on mount:', window.location.hash)
+    console.log('URL search on mount:', window.location.search)
 
     // Get initial session
     const getInitialSession = async () => {
