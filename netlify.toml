@@ -17,8 +17,6 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  DISABLE_ESLINT_PLUGIN = "true"
-  TSC_COMPILE_ON_ERROR = "true"
 
 # Environment variables should be set in Netlify dashboard for security
 # Go to Site settings → Environment variables to add:
