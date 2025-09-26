@@ -41,6 +41,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('URL hash on mount:', window.location.hash)
     console.log('URL search on mount:', window.location.search)
 
+    // Handle OAuth callback manually
+    const handleOAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+
+      if (accessToken && refreshToken) {
+        console.log('📱 OAuth tokens found, setting session manually...')
+        try {
+          const { data, error } = await supabaseClient.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+
+          if (error) {
+            console.error('❌ Error setting session:', error)
+          } else {
+            console.log('✅ Session set successfully:', data)
+            // Clean the URL
+            window.history.replaceState({}, document.title, window.location.pathname)
+            return true
+          }
+        } catch (error) {
+          console.error('❌ Exception setting session:', error)
+        }
+      }
+      return false
+    }
+
     // Get initial session
     const getInitialSession = async () => {
       if (!supabase) {
@@ -49,13 +78,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       try {
-        const { data: { session }, error } = await supabaseClient.auth.getSession()
-        if (error) {
-          console.error('Error getting initial session:', error)
-        } else {
-          console.log('Initial session:', session)
-          setSession(session)
-          setUser(session?.user ?? null)
+        // First try to handle OAuth callback
+        const handledCallback = await handleOAuthCallback()
+
+        if (!handledCallback) {
+          // No callback, check for existing session
+          const { data: { session }, error } = await supabaseClient.auth.getSession()
+          if (error) {
+            console.error('Error getting initial session:', error)
+          } else {
+            console.log('Initial session:', session)
+            setSession(session)
+            setUser(session?.user ?? null)
+          }
         }
       } catch (error) {
         console.error('Exception getting initial session:', error)
