@@ -40,6 +40,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('Setting up auth listener... FRESH BUILD')
     console.log('URL hash on mount:', window.location.hash)
     console.log('URL search on mount:', window.location.search)
+    console.log('🔧 Supabase config:', {
+      url: process.env.REACT_APP_SUPABASE_URL,
+      keyPrefix: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 20) + '...',
+      supabaseExists: !!supabase,
+      supabaseClientExists: !!supabaseClient
+    })
 
     // Handle OAuth callback manually
     const handleOAuthCallback = async () => {
