@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (accessToken && refreshToken) {
         console.log('📱 OAuth tokens found, setting session manually...')
         try {
-          const { data, error } = await supabaseClient.auth.setSession({
+          const { data, error } = await supabase!.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
           })
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (!handledCallback) {
           // No callback, check for existing session
-          const { data: { session }, error } = await supabaseClient.auth.getSession()
+          const { data: { session }, error } = await supabase!.auth.getSession()
           if (error) {
             console.error('Error getting initial session:', error)
           } else {
@@ -106,7 +106,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     // Listen for auth changes
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
+    const { data: { subscription } } = supabase!.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state change:', event, session)
         console.log('User ID:', session?.user?.id)
@@ -136,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Redirect URL:', `${window.location.origin}/`)
       console.log('Current URL:', window.location.href)
 
-      const { data, error } = await supabaseClient.auth.signInWithOAuth({
+      const { data, error } = await supabase!.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`
@@ -159,7 +159,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!supabase) return
 
     try {
-      const { error } = await supabaseClient.auth.signOut()
+      const { error } = await supabase!.auth.signOut()
       if (error) {
         console.error('Error signing out:', error)
         throw error
