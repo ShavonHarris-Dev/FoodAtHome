@@ -23,7 +23,6 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
       if (!user || !supabase) return
 
       console.log('🔍 Loading images for user:', user.id, user.email)
-      console.log('🔍 Supabase client headers:', supabase?.rest.headers)
 
       try {
         const { data: images, error } = await supabase
