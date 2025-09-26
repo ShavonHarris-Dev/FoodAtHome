@@ -8,6 +8,8 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signInWithGoogle: () => Promise<void>
+  signInWithEmail: (email: string, password: string) => Promise<void>
+  signUpWithEmail: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -69,8 +71,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('🔍 Access token preview:', accessToken?.substring(0, 50) + '...')
           console.log('🔍 Refresh token preview:', refreshToken?.substring(0, 20) + '...')
           console.log('🔍 Client config:', {
-            url: supabase!.supabaseUrl,
-            key: supabase!.supabaseKey?.substring(0, 20) + '...'
+            supabaseExists: !!supabase,
+            clientKeys: Object.keys(supabase!),
+            envUrl: process.env.REACT_APP_SUPABASE_URL,
+            envKey: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 20) + '...'
           })
 
           // Use the SAME client instance that's already initialized
@@ -183,6 +187,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
+  const signInWithEmail = async (email: string, password: string) => {
+    if (!supabase) {
+      throw new Error('Supabase is not configured')
+    }
+
+    try {
+      console.log('🔐 Signing in with email:', email)
+      const { data, error } = await supabase!.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        console.error('Email sign in error:', error)
+        throw error
+      }
+
+      console.log('✅ Email sign in successful:', data)
+    } catch (error) {
+      console.error('Exception during email sign in:', error)
+      throw error
+    }
+  }
+
+  const signUpWithEmail = async (email: string, password: string) => {
+    if (!supabase) {
+      throw new Error('Supabase is not configured')
+    }
+
+    try {
+      console.log('📝 Signing up with email:', email)
+      const { data, error } = await supabase!.auth.signUp({
+        email,
+        password
+      })
+
+      if (error) {
+        console.error('Email sign up error:', error)
+        throw error
+      }
+
+      console.log('✅ Email sign up successful:', data)
+    } catch (error) {
+      console.error('Exception during email sign up:', error)
+      throw error
+    }
+  }
+
   const signOut = async () => {
     if (!supabase) return
 
@@ -203,6 +255,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     session,
     loading,
     signInWithGoogle,
+    signInWithEmail,
+    signUpWithEmail,
     signOut
   }
 
