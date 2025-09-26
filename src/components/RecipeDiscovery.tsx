@@ -313,6 +313,8 @@ const RecipeDiscovery: React.FC = () => {
   const loadSavedRecipes = async (ingredients: string[]) => {
     if (!user) return
 
+    console.log('🔍 Loading saved recipes for user:', user.id, user.email)
+
     try {
       const maxMissing = getAdaptiveThreshold(ingredients.length)
       const saved = await SavedRecipesService.getRecipesByIngredients(user.id, ingredients, maxMissing)

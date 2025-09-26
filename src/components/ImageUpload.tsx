@@ -22,6 +22,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
     const loadExistingImages = async () => {
       if (!user || !supabase) return
 
+      console.log('🔍 Loading images for user:', user.id, user.email)
+
       try {
         const { data: images, error } = await supabase
           .from('user_images')
