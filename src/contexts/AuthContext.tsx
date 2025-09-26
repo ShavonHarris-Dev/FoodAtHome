@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       REACT_APP_SUPABASE_ANON_KEY: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 50) + '...'
     })
 
-    // Get initial session and let Supabase handle OAuth automatically
+    // Get initial session with delay for OAuth processing
     const getInitialSession = async () => {
       if (!supabase) {
         setLoading(false)
@@ -62,6 +62,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       try {
+        // If OAuth callback is present, wait a moment for Supabase to process it
+        if (window.location.hash.includes('access_token')) {
+          console.log('🔍 OAuth callback detected, waiting for Supabase to process...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+
         console.log('🔍 Getting initial session...')
         const { data: { session }, error } = await supabase!.auth.getSession()
 
