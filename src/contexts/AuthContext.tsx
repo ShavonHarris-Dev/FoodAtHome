@@ -42,9 +42,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('URL search on mount:', window.location.search)
     console.log('🔧 Supabase config:', {
       url: process.env.REACT_APP_SUPABASE_URL,
+      urlIsSet: !!process.env.REACT_APP_SUPABASE_URL,
       keyPrefix: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 20) + '...',
+      keyIsSet: !!process.env.REACT_APP_SUPABASE_ANON_KEY,
+      keyLength: process.env.REACT_APP_SUPABASE_ANON_KEY?.length,
       supabaseExists: !!supabase,
       supabaseClientExists: !!supabaseClient
+    })
+    console.log('🔧 Raw env vars:', {
+      REACT_APP_SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL,
+      REACT_APP_SUPABASE_ANON_KEY: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 50) + '...'
     })
 
     // Handle OAuth callback manually
