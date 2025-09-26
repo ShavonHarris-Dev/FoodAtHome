@@ -54,12 +54,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       REACT_APP_SUPABASE_ANON_KEY: process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 50) + '...'
     })
 
-    // Clean OAuth callback URL if present
-    const cleanOAuthUrl = () => {
-      if (window.location.hash.includes('access_token')) {
-        console.log('📱 OAuth callback detected, cleaning URL...')
-        window.history.replaceState({}, document.title, window.location.pathname)
+    // Handle OAuth callback manually with proper client
+    const handleOAuthCallback = async () => {
+      if (!window.location.hash.includes('access_token')) return false
+
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+
+      if (accessToken && refreshToken) {
+        console.log('📱 OAuth tokens found, setting session with correct client...')
+        try {
+          // Create a fresh client instance for session establishment
+          const { createClient } = await import('@supabase/supabase-js')
+          const tempClient = createClient(
+            process.env.REACT_APP_SUPABASE_URL!,
+            process.env.REACT_APP_SUPABASE_ANON_KEY!
+          )
+
+          const { data, error } = await tempClient.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+
+          if (error) {
+            console.error('❌ Error setting session:', error)
+            return false
+          } else {
+            console.log('✅ Session set successfully:', data)
+            // Clean the URL
+            window.history.replaceState({}, document.title, window.location.pathname)
+            return true
+          }
+        } catch (error) {
+          console.error('❌ Exception setting session:', error)
+          return false
+        }
       }
+      return false
     }
 
     // Get initial session
@@ -70,10 +102,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       try {
-        // Clean OAuth URL first
-        cleanOAuthUrl()
+        // First try to handle OAuth callback
+        const handledCallback = await handleOAuthCallback()
 
-        // Let Supabase handle OAuth callback automatically through the auth listener
+        // Then get session (which should now exist if callback was handled)
         const { data: { session }, error } = await supabase!.auth.getSession()
         if (error) {
           console.error('Error getting initial session:', error)
