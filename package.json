@@ -17,6 +17,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
+    "firebase": "^12.3.0",
     "heic2any": "^0.0.4",
     "node-fetch": "^3.3.2",
     "react": "^19.1.1",
