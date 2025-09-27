@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { FirestoreService } from '../services/FirestoreService'
 
 export interface UsageRecord {
   id?: string
@@ -18,24 +18,12 @@ export interface UsageLimits {
 
 export class UsageTrackingService {
   static async trackRecipeGeneration(userId: string, recipesGenerated: number): Promise<void> {
-    if (!supabase) {
-      console.warn('Supabase not available for usage tracking')
-      return
-    }
-
     try {
-      const { error } = await supabase
-        .from('usage_tracking')
-        .insert({
-          user_id: userId,
-          action_type: 'recipe_generation',
-          recipes_generated: recipesGenerated,
-          created_at: new Date().toISOString()
-        })
-
-      if (error) {
-        console.error('Error tracking usage:', error)
-      }
+      await FirestoreService.trackUsage({
+        user_id: userId,
+        action_type: 'recipe_generation',
+        recipes_generated: recipesGenerated
+      })
     } catch (error) {
       console.error('Error tracking recipe generation:', error)
     }
@@ -64,27 +52,9 @@ export class UsageTrackingService {
       isBasicTier: true
     }
 
-    if (!supabase) {
-      console.warn('Supabase not available, returning default limits')
-      return basicLimits
-    }
-
     try {
       // Get usage from the last 7 days
-      const oneWeekAgo = new Date()
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-
-      const { data: usageData, error } = await supabase
-        .from('usage_tracking')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('action_type', 'recipe_generation')
-        .gte('created_at', oneWeekAgo.toISOString())
-
-      if (error) {
-        console.error('Error fetching usage data:', error)
-        return basicLimits
-      }
+      const usageData = await FirestoreService.getUserUsageRecords(userId, 'recipe_generation', 7)
 
       const currentWeekUsage = usageData?.length || 0
       const remainingGenerations = Math.max(0, basicLimits.maxGenerationsPerWeek - currentWeekUsage)

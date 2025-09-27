@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { FirebaseStorageService } from '../services/FirebaseStorageService'
 import { useAuth } from '../contexts/AuthContext'
 import heic2any from 'heic2any'
 import './ImageUpload.css'
@@ -20,23 +20,14 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
   // Load existing images when component mounts
   useEffect(() => {
     const loadExistingImages = async () => {
-      if (!user || !supabase) return
+      if (!user) return
 
       console.log('🔍 Loading images for user:', user.id, user.email)
 
       try {
-        const { data: images, error } = await supabase
-          .from('user_images')
-          .select('image_url')
-          .eq('user_id', user.id)
+        const imageUrls = await FirebaseStorageService.getUserImages(user.id)
 
-        if (error) {
-          console.error('Error loading existing images:', error)
-          return
-        }
-
-        if (images && images.length > 0) {
-          const imageUrls = images.map(img => img.image_url)
+        if (imageUrls.length > 0) {
           setUploadedImages(imageUrls)
           onImagesUploaded(imageUrls)
         }
@@ -121,34 +112,12 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
 
   const uploadImage = async (originalFile: File): Promise<string> => {
     if (!user) throw new Error('User not authenticated')
-    if (!supabase) throw new Error('Supabase not configured')
 
     // Process file (convert HEIC if needed)
     const processedFile = await processFile(originalFile)
 
-    const fileExt = processedFile.name.split('.').pop()
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`
-
-    const { data, error } = await supabase.storage
-      .from('user-images')
-      .upload(fileName, processedFile)
-
-    if (error) throw error
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('user-images')
-      .getPublicUrl(data.path)
-
-    // Save image record to database
-    await supabase
-      .from('user_images')
-      .insert({
-        user_id: user.id,
-        image_url: publicUrl,
-        image_name: processedFile.name
-      })
-
-    return publicUrl
+    // Upload using Firebase Storage Service
+    return await FirebaseStorageService.uploadImage(user.id, processedFile)
   }
 
   const handleFileSelect = async (files: FileList) => {
@@ -214,13 +183,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
     const imageUrl = uploadedImages[index]
 
     try {
-      // Remove from database
-      if (supabase) {
-        await supabase
-          .from('user_images')
-          .delete()
-          .eq('image_url', imageUrl)
-          .eq('user_id', user?.id)
+      // Remove from Firebase Storage and database
+      if (user) {
+        await FirebaseStorageService.deleteImage(imageUrl, user.id)
       }
 
       // Remove from state

@@ -1,23 +1,15 @@
-import { supabase, Database } from './supabase'
+import { FirestoreService, SavedRecipe as FirestoreSavedRecipe } from '../services/FirestoreService'
 import { GeneratedRecipe } from './claudeRecipeGeneration'
 
-type SavedRecipeRow = Database['public']['Tables']['saved_recipes']['Row']
-type SavedRecipeInsert = Database['public']['Tables']['saved_recipes']['Insert']
-
-export interface SavedRecipe extends SavedRecipeRow {
+export interface SavedRecipe extends FirestoreSavedRecipe {
   // Additional computed properties can go here
 }
 
 export class SavedRecipesService {
   // Save a generated recipe to the user's collection
   static async saveRecipe(userId: string, recipe: GeneratedRecipe): Promise<SavedRecipe | null> {
-    if (!supabase) {
-      console.warn('Supabase not configured')
-      return null
-    }
-
     try {
-      const recipeToSave: SavedRecipeInsert = {
+      const recipeToSave = {
         user_id: userId,
         title: recipe.title,
         description: recipe.description,
@@ -31,21 +23,10 @@ export class SavedRecipesService {
         difficulty: recipe.difficulty,
         tips: recipe.tips || null,
         variations: recipe.variations || null,
-        is_generated: true,
-        updated_at: new Date().toISOString()
+        is_generated: true
       }
 
-      const { data, error } = await supabase
-        .from('saved_recipes')
-        .insert(recipeToSave)
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error saving recipe:', error)
-        return null
-      }
-
+      const data = await FirestoreService.saveRecipe(recipeToSave)
       console.log('Recipe saved successfully:', data.title)
       return data
 
@@ -57,25 +38,8 @@ export class SavedRecipesService {
 
   // Get all saved recipes for a user
   static async getUserRecipes(userId: string): Promise<SavedRecipe[]> {
-    if (!supabase) {
-      console.warn('Supabase not configured')
-      return []
-    }
-
     try {
-      const { data, error } = await supabase
-        .from('saved_recipes')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Error fetching saved recipes:', error)
-        return []
-      }
-
-      return data || []
-
+      return await FirestoreService.getUserRecipes(userId)
     } catch (error) {
       console.error('Failed to fetch saved recipes:', error)
       return []
@@ -88,11 +52,6 @@ export class SavedRecipesService {
     availableIngredients: string[],
     maxMissingIngredients: number = 2
   ): Promise<SavedRecipe[]> {
-    if (!supabase) {
-      console.warn('Supabase not configured')
-      return []
-    }
-
     try {
       const allRecipes = await this.getUserRecipes(userId)
 
@@ -135,90 +94,31 @@ export class SavedRecipesService {
 
   // Delete a saved recipe
   static async deleteRecipe(userId: string, recipeId: string): Promise<boolean> {
-    if (!supabase) {
-      console.warn('Supabase not configured')
-      return false
-    }
-
     try {
-      const { error } = await supabase
-        .from('saved_recipes')
-        .delete()
-        .eq('id', recipeId)
-        .eq('user_id', userId) // Ensure user can only delete their own recipes
-
-      if (error) {
-        console.error('Error deleting recipe:', error)
-        return false
-      }
-
+      await FirestoreService.deleteRecipe(recipeId)
       console.log('Recipe deleted successfully')
       return true
-
     } catch (error) {
       console.error('Failed to delete recipe:', error)
       return false
     }
   }
 
-  // Update a saved recipe
+  // Update a saved recipe (not implemented in FirestoreService yet)
   static async updateRecipe(
     userId: string,
     recipeId: string,
     updates: Partial<GeneratedRecipe>
   ): Promise<SavedRecipe | null> {
-    if (!supabase) {
-      console.warn('Supabase not configured')
-      return null
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('saved_recipes')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', recipeId)
-        .eq('user_id', userId) // Ensure user can only update their own recipes
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error updating recipe:', error)
-        return null
-      }
-
-      console.log('Recipe updated successfully:', data.title)
-      return data
-
-    } catch (error) {
-      console.error('Failed to update recipe:', error)
-      return null
-    }
+    console.warn('Recipe update not yet implemented with Firestore')
+    return null
   }
 
   // Check if a recipe is already saved (to prevent duplicates)
   static async isRecipeSaved(userId: string, recipeTitle: string): Promise<boolean> {
-    if (!supabase) {
-      return false
-    }
-
     try {
-      const { data, error } = await supabase
-        .from('saved_recipes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('title', recipeTitle)
-        .single()
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
-        console.error('Error checking if recipe is saved:', error)
-        return false
-      }
-
-      return !!data
-
+      const userRecipes = await this.getUserRecipes(userId)
+      return userRecipes.some(recipe => recipe.title === recipeTitle)
     } catch (error) {
       console.error('Failed to check if recipe is saved:', error)
       return false
@@ -232,10 +132,6 @@ export class SavedRecipesService {
     byDifficulty: Record<string, number>
     averageCookTime: number
   }> {
-    if (!supabase) {
-      return { total: 0, byCuisine: {}, byDifficulty: {}, averageCookTime: 0 }
-    }
-
     try {
       const recipes = await this.getUserRecipes(userId)
 

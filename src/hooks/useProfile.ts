@@ -1,22 +1,10 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-
-interface Profile {
-  id: string
-  email: string
-  full_name: string | null
-  has_paid: boolean
-  subscription_tier: 'basic' | 'premium'
-  food_genres: string[] | null
-  dietary_preferences: string | null
-  created_at: string
-  updated_at: string
-}
+import { FirestoreService, UserProfile } from '../services/FirestoreService'
 
 export const useProfile = () => {
   const { user } = useAuth()
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -26,79 +14,59 @@ export const useProfile = () => {
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchProfile = async () => {
-    if (!user || !supabase) return
+    if (!user) return
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+      console.log('🔥 Fetching profile for user:', user.id)
+      const existingProfile = await FirestoreService.getProfile(user.id)
 
-      if (error && error.code === 'PGRST116') {
+      if (!existingProfile) {
+        console.log('🔥 No profile found, creating new one')
         await createProfile()
-      } else if (error) {
-        console.error('Error fetching profile:', error)
       } else {
-        setProfile(data)
+        console.log('🔥 Profile found:', existingProfile)
+        setProfile(existingProfile)
       }
     } catch (error) {
-      console.error('Error fetching profile:', error)
+      console.error('🔥 Error fetching profile:', error)
     } finally {
       setLoading(false)
     }
   }
 
   const createProfile = async () => {
-    if (!user || !supabase) return
+    if (!user) return
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert({
-          id: user.id,
-          email: user.email!,
-          full_name: user.user_metadata.full_name || null,
-          has_paid: false,
-          subscription_tier: 'basic'
-        })
-        .select()
-        .single()
+      console.log('🔥 Creating new profile for user:', user.id)
+      const newProfile = await FirestoreService.createProfile(user.id, {
+        email: user.email!,
+        full_name: user.user_metadata.full_name || null,
+        avatar_url: user.user_metadata.avatar_url || null,
+        has_paid: false,
+        subscription_tier: 'basic',
+        food_genres: null,
+        dietary_preferences: null
+      })
 
-      if (error) {
-        console.error('Error creating profile:', error)
-      } else {
-        setProfile(data)
-      }
+      console.log('🔥 Profile created successfully:', newProfile)
+      setProfile(newProfile)
     } catch (error) {
-      console.error('Error creating profile:', error)
+      console.error('🔥 Error creating profile:', error)
     }
   }
 
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user || !profile || !supabase) return
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    if (!user || !profile) return
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error updating profile:', error)
-        throw error
-      } else {
-        setProfile(data)
-        return data
-      }
+      console.log('🔥 Updating profile:', updates)
+      const updatedProfile = await FirestoreService.updateProfile(user.id, updates)
+      setProfile(updatedProfile)
+      return updatedProfile
     } catch (error) {
-      console.error('Error updating profile:', error)
+      console.error('🔥 Error updating profile:', error)
       throw error
     }
   }

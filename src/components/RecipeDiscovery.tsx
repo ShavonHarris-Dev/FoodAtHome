@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useProfile } from '../hooks/useProfile'
-import { supabase } from '../lib/supabase'
+import { FirebaseStorageService } from '../services/FirebaseStorageService'
 import { GeneratedRecipe, UserPreferences } from '../lib/claudeRecipeGeneration'
 import { SavedRecipesService } from '../lib/savedRecipesService'
 import { ClaudeVisionService } from '../lib/claudeVision'
@@ -181,7 +181,7 @@ const RecipeDiscovery: React.FC = () => {
   }
 
   const clearCacheAndReanalyze = async () => {
-    if (!user || !supabase) {
+    if (!user) {
       setError('User not authenticated')
       return
     }
@@ -198,13 +198,9 @@ const RecipeDiscovery: React.FC = () => {
 
     try {
       // Get fresh images and reanalyze
-      const { data: images } = await supabase
-        .from('user_images')
-        .select('image_url')
-        .eq('user_id', user.id)
+      const imageUrls = await FirebaseStorageService.getUserImages(user.id)
 
-      if (images && images.length > 0) {
-        const imageUrls = images.map(img => img.image_url)
+      if (imageUrls.length > 0) {
         const ingredients = await analyzeIngredients(imageUrls)
         setUserIngredients(ingredients)
         await generateRecipes(ingredients)
@@ -359,7 +355,7 @@ const RecipeDiscovery: React.FC = () => {
 
   useEffect(() => {
     const loadUserIngredientsAndRecipes = async () => {
-      if (!user || !supabase) {
+      if (!user) {
         setLoading(false)
         return
       }
@@ -378,14 +374,9 @@ const RecipeDiscovery: React.FC = () => {
 
       try {
         // Get user's uploaded images
-        const { data: images } = await supabase
-          .from('user_images')
-          .select('image_url')
-          .eq('user_id', user.id)
+        const imageUrls = await FirebaseStorageService.getUserImages(user.id)
 
-        if (images && images.length > 0) {
-          const imageUrls = images.map(img => img.image_url)
-
+        if (imageUrls.length > 0) {
           // Only analyze if we don't have cached ingredients
           if (userIngredients.length === 0) {
             const ingredients = await analyzeIngredients(imageUrls)
