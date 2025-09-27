@@ -223,7 +223,7 @@ const PaymentFormContent: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) =>
             }
           </button>
 
-          {process.env.NODE_ENV === 'development' && (
+          {(process.env.NODE_ENV === 'development' || !process.env.NODE_ENV || process.env.NODE_ENV !== 'production') && (
             <button
               className="skip-payment-button"
               onClick={handleSkipPayment}
