@@ -1,11 +1,22 @@
 // @ts-nocheck
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { User } from 'firebase/auth'
+import { User as FirebaseUser } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
 import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth'
 
+// Adapter to make Firebase User compatible with Supabase User structure
+interface CompatibleUser {
+  id: string
+  uid: string
+  email: string | null
+  user_metadata: {
+    full_name: string | null
+    avatar_url: string | null
+  }
+}
+
 interface AuthContextType {
-  user: User | null
+  user: CompatibleUser | null
   loading: boolean
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
@@ -25,16 +36,34 @@ interface AuthProviderProps {
   children: React.ReactNode
 }
 
+// Convert Firebase User to compatible format
+const createCompatibleUser = (firebaseUser: FirebaseUser): CompatibleUser => ({
+  id: firebaseUser.uid,
+  uid: firebaseUser.uid,
+  email: firebaseUser.email,
+  user_metadata: {
+    full_name: firebaseUser.displayName,
+    avatar_url: firebaseUser.photoURL
+  }
+})
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<CompatibleUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     console.log('🔥 Setting up Firebase auth listener...')
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('🔥 Firebase auth state changed:', user?.email || 'No user')
-      setUser(user)
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      console.log('🔥 Firebase auth state changed:', firebaseUser?.email || 'No user')
+
+      if (firebaseUser) {
+        const compatibleUser = createCompatibleUser(firebaseUser)
+        setUser(compatibleUser)
+      } else {
+        setUser(null)
+      }
+
       setLoading(false)
     })
 
