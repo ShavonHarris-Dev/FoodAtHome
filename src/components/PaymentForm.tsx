@@ -6,6 +6,7 @@ import {
   Elements
 } from '@stripe/react-stripe-js'
 import { useProfile } from '../hooks/useProfile'
+import { useAuth } from '../contexts/AuthContext'
 import stripePromise from '../lib/stripe'
 import './PaymentForm.css'
 
@@ -19,6 +20,7 @@ const PaymentFormContent: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) =>
   const stripe = useStripe()
   const elements = useElements()
   const { updateProfile } = useProfile()
+  const { signOut, user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionTier>('premium')
@@ -137,7 +139,23 @@ const PaymentFormContent: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) =>
   return (
     <div className="payment-form">
       <div className="payment-container">
-        <h2>Choose Your Subscription Plan</h2>
+        <div className="payment-header">
+          <h2>Choose Your Subscription Plan</h2>
+          <button
+            onClick={signOut}
+            className="sign-out-link"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#666',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            Sign out ({user?.email})
+          </button>
+        </div>
 
         <div className="plan-selector">
           <div
