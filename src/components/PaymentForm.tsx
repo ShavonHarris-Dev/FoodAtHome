@@ -117,6 +117,23 @@ const PaymentFormContent: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) =>
     }
   }
 
+  const handleSkipPayment = async () => {
+    setLoading(true)
+    try {
+      // Update user profile to skip payment (development only)
+      await updateProfile({
+        has_paid: true,
+        subscription_tier: selectedPlan
+      })
+      onPaymentSuccess()
+    } catch (err: any) {
+      setError('Failed to skip payment. Please try again.')
+      console.error('Skip payment error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="payment-form">
       <div className="payment-container">
@@ -187,6 +204,26 @@ const PaymentFormContent: React.FC<PaymentFormProps> = ({ onPaymentSuccess }) =>
               : `Start ${selectedPlan} Plan - $${planDetails[selectedPlan].price}/month`
             }
           </button>
+
+          {process.env.NODE_ENV === 'development' && (
+            <button
+              className="skip-payment-button"
+              onClick={handleSkipPayment}
+              disabled={loading}
+              style={{
+                marginTop: '10px',
+                background: '#6c757d',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              Skip Payment (Development Only)
+            </button>
+          )}
 
           <p className="payment-note">
             Secure payment powered by Stripe. Cancel anytime. Your payment information is safe and encrypted.
