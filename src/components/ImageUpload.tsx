@@ -22,7 +22,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
     const loadExistingImages = async () => {
       if (!user) return
 
-      console.log('🔍 Loading images for user:', user.id, user.email)
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Loading images for user:', user.email)
+      }
 
       try {
         const imageUrls = await FirebaseStorageService.getUserImages(user.id)

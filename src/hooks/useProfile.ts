@@ -18,18 +18,15 @@ export const useProfile = () => {
 
     setLoading(true)
     try {
-      console.log('🔥 Fetching profile for user:', user.id)
       const existingProfile = await FirestoreService.getProfile(user.id)
 
       if (!existingProfile) {
-        console.log('🔥 No profile found, creating new one')
         await createProfile()
       } else {
-        console.log('🔥 Profile found:', existingProfile)
         setProfile(existingProfile)
       }
     } catch (error) {
-      console.error('🔥 Error fetching profile:', error)
+      console.error('Error fetching profile:', error)
     } finally {
       setLoading(false)
     }
@@ -39,7 +36,6 @@ export const useProfile = () => {
     if (!user) return
 
     try {
-      console.log('🔥 Creating new profile for user:', user.id)
       const newProfile = await FirestoreService.createProfile(user.id, {
         email: user.email!,
         full_name: user.user_metadata.full_name || null,
@@ -50,10 +46,9 @@ export const useProfile = () => {
         dietary_preferences: null
       })
 
-      console.log('🔥 Profile created successfully:', newProfile)
       setProfile(newProfile)
     } catch (error) {
-      console.error('🔥 Error creating profile:', error)
+      console.error('Error creating profile:', error)
     }
   }
 
@@ -61,12 +56,11 @@ export const useProfile = () => {
     if (!user || !profile) return
 
     try {
-      console.log('🔥 Updating profile:', updates)
       const updatedProfile = await FirestoreService.updateProfile(user.id, updates)
       setProfile(updatedProfile)
       return updatedProfile
     } catch (error) {
-      console.error('🔥 Error updating profile:', error)
+      console.error('Error updating profile:', error)
       throw error
     }
   }

@@ -52,11 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('🔥 Setting up Firebase auth listener...')
-
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      console.log('🔥 Firebase auth state changed:', firebaseUser?.email || 'No user')
-
       if (firebaseUser) {
         const compatibleUser = createCompatibleUser(firebaseUser)
         setUser(compatibleUser)
@@ -68,29 +64,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     })
 
     return () => {
-      console.log('🔥 Cleaning up Firebase auth listener')
       unsubscribe()
     }
   }, [])
 
   const signInWithGoogle = async () => {
     try {
-      console.log('🔥 Starting Google sign in with Firebase...')
       const result = await signInWithPopup(auth, googleProvider)
-      console.log('🔥 ✅ Google sign in successful:', result.user.email)
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Google sign in successful')
+      }
     } catch (error) {
-      console.error('🔥 ❌ Google sign in error:', error)
+      console.error('❌ Google sign in error:', error)
       throw error
     }
   }
 
   const signOut = async () => {
     try {
-      console.log('🔥 Signing out...')
       await firebaseSignOut(auth)
-      console.log('🔥 ✅ Sign out successful')
     } catch (error) {
-      console.error('🔥 ❌ Sign out error:', error)
+      console.error('❌ Sign out error:', error)
       throw error
     }
   }
