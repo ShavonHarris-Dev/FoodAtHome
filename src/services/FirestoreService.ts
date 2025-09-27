@@ -66,6 +66,14 @@ export interface UsageRecord {
   created_at: any;
 }
 
+// User Ingredients interface
+export interface UserIngredients {
+  id: string;
+  user_id: string;
+  ingredients: string[];
+  last_updated: any;
+}
+
 export class FirestoreService {
   // Profile methods
   static async getProfile(userId: string): Promise<UserProfile | null> {
@@ -214,6 +222,51 @@ export class FirestoreService {
       await deleteDoc(doc(db, 'saved_recipes', recipeId));
     } catch (error) {
       console.error('Error deleting recipe:', error);
+      throw error;
+    }
+  }
+
+  // User Ingredients methods
+  static async getUserIngredients(userId: string): Promise<string[]> {
+    try {
+      const docRef = doc(db, 'user_ingredients', userId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data() as UserIngredients;
+        return data.ingredients || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error getting user ingredients:', error);
+      throw error;
+    }
+  }
+
+  static async saveUserIngredients(userId: string, ingredients: string[]): Promise<void> {
+    try {
+      const docRef = doc(db, 'user_ingredients', userId);
+      await setDoc(docRef, {
+        user_id: userId,
+        ingredients: ingredients,
+        last_updated: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error saving user ingredients:', error);
+      throw error;
+    }
+  }
+
+  static async clearUserIngredients(userId: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'user_ingredients', userId);
+      await setDoc(docRef, {
+        user_id: userId,
+        ingredients: [],
+        last_updated: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error clearing user ingredients:', error);
       throw error;
     }
   }

@@ -17,11 +17,7 @@ const Dashboard: React.FC = () => {
   const [dietaryPreferences, setDietaryPreferences] = useState('')
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [showPayment, setShowPayment] = useState(false)
-  const [activeTab, setActiveTab] = useState<'setup' | 'recipes' | 'meal-plan'>(() => {
-    // Restore active tab from localStorage
-    const savedTab = localStorage.getItem('dashboard-active-tab') as 'setup' | 'recipes' | 'meal-plan'
-    return savedTab || 'setup'
-  })
+  const [activeTab, setActiveTab] = useState<'setup' | 'recipes' | 'meal-plan'>('setup')
 
   useEffect(() => {
     if (profile) {
@@ -32,10 +28,22 @@ const Dashboard: React.FC = () => {
   }, [profile])
 
 
+  // Load user-specific active tab and save changes
+  useEffect(() => {
+    if (user) {
+      const savedTab = localStorage.getItem(`dashboard-active-tab-${user.id}`) as 'setup' | 'recipes' | 'meal-plan'
+      if (savedTab) {
+        setActiveTab(savedTab)
+      }
+    }
+  }, [user])
+
   // Save active tab to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('dashboard-active-tab', activeTab)
-  }, [activeTab])
+    if (user) {
+      localStorage.setItem(`dashboard-active-tab-${user.id}`, activeTab)
+    }
+  }, [activeTab, user])
 
   // Load existing uploaded images when component mounts
   useEffect(() => {

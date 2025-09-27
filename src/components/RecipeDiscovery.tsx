@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useProfile } from '../hooks/useProfile'
 import { FirebaseStorageService } from '../services/FirebaseStorageService'
+import { FirestoreService } from '../services/FirestoreService'
 import { GeneratedRecipe, UserPreferences } from '../lib/claudeRecipeGeneration'
 import { SavedRecipesService } from '../lib/savedRecipesService'
 import { ClaudeVisionService } from '../lib/claudeVision'
@@ -19,16 +20,8 @@ interface RecipeWithMissing extends GeneratedRecipe {
 const RecipeDiscovery: React.FC = () => {
   const { user } = useAuth()
   const { profile } = useProfile()
-  const [userIngredients, setUserIngredients] = useState<string[]>(() => {
-    // Restore ingredients from localStorage if available
-    const savedIngredients = localStorage.getItem('user-ingredients')
-    return savedIngredients ? JSON.parse(savedIngredients) : []
-  })
-  const [suggestedRecipes, setSuggestedRecipes] = useState<RecipeWithMissing[]>(() => {
-    // Restore recipes from localStorage if available
-    const savedRecipes = localStorage.getItem('suggested-recipes')
-    return savedRecipes ? JSON.parse(savedRecipes) : []
-  })
+  const [userIngredients, setUserIngredients] = useState<string[]>([])
+  const [suggestedRecipes, setSuggestedRecipes] = useState<RecipeWithMissing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingRecipe, setSavingRecipe] = useState<string | null>(null)
@@ -186,9 +179,10 @@ const RecipeDiscovery: React.FC = () => {
       return
     }
 
-    // Clear localStorage cache
-    localStorage.removeItem('user-ingredients')
-    localStorage.removeItem('suggested-recipes')
+    // Clear Firebase ingredients cache
+    if (user) {
+      await FirestoreService.clearUserIngredients(user.id)
+    }
 
     // Reset component state
     setUserIngredients([])
@@ -332,15 +326,40 @@ const RecipeDiscovery: React.FC = () => {
     }
   }
 
-  // Save ingredients to localStorage when they change
+  // Save ingredients to Firebase when they change
   useEffect(() => {
-    localStorage.setItem('user-ingredients', JSON.stringify(userIngredients))
-  }, [userIngredients])
+    const saveIngredients = async () => {
+      if (user && userIngredients.length > 0) {
+        try {
+          await FirestoreService.saveUserIngredients(user.id, userIngredients)
+        } catch (error) {
+          console.error('Failed to save ingredients to Firebase:', error)
+        }
+      }
+    }
+    saveIngredients()
+  }, [userIngredients, user])
 
-  // Save recipes to localStorage when they change
+  // Load user data when user changes
   useEffect(() => {
-    localStorage.setItem('suggested-recipes', JSON.stringify(suggestedRecipes))
-  }, [suggestedRecipes])
+    const loadUserData = async () => {
+      if (user) {
+        try {
+          // Load ingredients from Firebase
+          const savedIngredients = await FirestoreService.getUserIngredients(user.id)
+          setUserIngredients(savedIngredients)
+        } catch (error) {
+          console.error('Failed to load ingredients from Firebase:', error)
+          setUserIngredients([])
+        }
+      } else {
+        // Clear data when no user
+        setUserIngredients([])
+        setSuggestedRecipes([])
+      }
+    }
+    loadUserData()
+  }, [user])
 
   // Load usage limits when component mounts
   useEffect(() => {
@@ -360,11 +379,8 @@ const RecipeDiscovery: React.FC = () => {
         return
       }
 
-      // If we already have cached ingredients and recipes, just stop loading
-      if (userIngredients.length > 0 && suggestedRecipes.length > 0) {
-        setLoading(false)
-        return
-      }
+      // Wait a bit for ingredients to load from Firebase
+      await new Promise(resolve => setTimeout(resolve, 500))
 
       // Safety timeout to ensure loading never gets stuck
       const timeoutId = setTimeout(() => {
@@ -377,34 +393,36 @@ const RecipeDiscovery: React.FC = () => {
         const imageUrls = await FirebaseStorageService.getUserImages(user.id)
 
         if (imageUrls.length > 0) {
-          // Only analyze if we don't have cached ingredients
-          if (userIngredients.length === 0) {
+          // Check if we need to analyze ingredients (no ingredients saved in Firebase)
+          const savedIngredients = await FirestoreService.getUserIngredients(user.id)
+
+          if (savedIngredients.length === 0) {
+            // No saved ingredients, analyze images
             const ingredients = await analyzeIngredients(imageUrls)
             setUserIngredients(ingredients)
 
-            // Generate recipes with Claude AI (even if no ingredients found)
             if (ingredients.length > 0) {
               await generateRecipes(ingredients)
             } else {
               console.log('🍳 No ingredients detected, will show saved recipes instead')
               await loadSavedRecipes([])
             }
-          } else if (suggestedRecipes.length === 0) {
-            // We have ingredients but no recipes, generate recipes
-            await generateRecipes(userIngredients)
+          } else {
+            // Use saved ingredients and generate recipes if needed
+            if (suggestedRecipes.length === 0) {
+              await generateRecipes(savedIngredients)
+            }
           }
-        } else if (userIngredients.length === 0) {
-          setError('Please upload some ingredient photos first')
+        } else {
+          // No images uploaded
+          const savedIngredients = await FirestoreService.getUserIngredients(user.id)
+          if (savedIngredients.length === 0) {
+            setError('Please upload some ingredient photos first')
+          }
         }
       } catch (err) {
         console.error('Error loading recipes:', err)
         setError('Failed to load recipe suggestions. Using saved recipes.')
-
-        // Fallback to saved recipes if generation fails
-        if (userIngredients.length === 0) {
-          const ingredients = await analyzeIngredients([])
-          setUserIngredients(ingredients)
-        }
         await loadSavedRecipes(userIngredients)
       } finally {
         clearTimeout(timeoutId)
@@ -414,7 +432,7 @@ const RecipeDiscovery: React.FC = () => {
 
     loadUserIngredientsAndRecipes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]) // Removed userIngredients and suggestedRecipes from deps to prevent infinite loops
+  }, [user]) // Only depend on user to prevent infinite loops
 
   if (loading) {
     return (
