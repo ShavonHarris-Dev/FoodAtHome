@@ -40,7 +40,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
     }
 
     loadExistingImages()
-  }, [user, onImagesUploaded])
+  }, [user])
 
   // Check if file is HEIC format
   const isHEIC = (file: File): boolean => {

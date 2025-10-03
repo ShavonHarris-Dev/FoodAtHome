@@ -84,6 +84,23 @@
   background: #d35400;
 }
 
+.generate-recipes-btn {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  margin-right: 8px;
+}
+
+.generate-recipes-btn:hover {
+  background: #219a52;
+}
+
 .ingredient-editor {
   margin-top: 15px;
 }

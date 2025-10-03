@@ -34,6 +34,7 @@ const RecipeDiscovery: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [usageLimits, setUsageLimits] = useState<UsageLimits | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
+  const [showGenerateButton, setShowGenerateButton] = useState(false)
 
   const analyzeIngredients = async (imageUrls: string[]): Promise<string[]> => {
     try {
@@ -326,6 +327,11 @@ const RecipeDiscovery: React.FC = () => {
     }
   }
 
+  const handleGenerateRecipes = async () => {
+    setShowGenerateButton(false)
+    await generateRecipes(userIngredients)
+  }
+
   // Save ingredients to Firebase when they change
   useEffect(() => {
     const saveIngredients = async () => {
@@ -402,15 +408,15 @@ const RecipeDiscovery: React.FC = () => {
             setUserIngredients(ingredients)
 
             if (ingredients.length > 0) {
-              await generateRecipes(ingredients)
+              setShowGenerateButton(true)
             } else {
               console.log('🍳 No ingredients detected, will show saved recipes instead')
               await loadSavedRecipes([])
             }
           } else {
-            // Use saved ingredients and generate recipes if needed
+            // Use saved ingredients - show generate button if no recipes exist
             if (suggestedRecipes.length === 0) {
-              await generateRecipes(savedIngredients)
+              setShowGenerateButton(true)
             }
           }
         } else {
@@ -470,6 +476,15 @@ const RecipeDiscovery: React.FC = () => {
           <h3>Your Available Ingredients</h3>
           {!isEditingIngredients && (
             <div className="ingredient-buttons">
+              {showGenerateButton && (
+                <button
+                  className="generate-recipes-btn"
+                  onClick={handleGenerateRecipes}
+                  title="Generate recipes with your current ingredients"
+                >
+                  🍳 Generate Recipes
+                </button>
+              )}
               <button
                 className="edit-ingredients-btn"
                 onClick={startEditingIngredients}
