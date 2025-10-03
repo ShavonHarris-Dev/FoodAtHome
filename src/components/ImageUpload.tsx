@@ -40,7 +40,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesUploaded, maxImages =
     }
 
     loadExistingImages()
-  }, [user])
+  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check if file is HEIC format
   const isHEIC = (file: File): boolean => {

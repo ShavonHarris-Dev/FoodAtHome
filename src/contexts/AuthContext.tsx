@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider)
+      await signInWithPopup(auth, googleProvider)
       // Only log in development
       if (process.env.NODE_ENV === 'development') {
         console.log('✅ Google sign in successful')
